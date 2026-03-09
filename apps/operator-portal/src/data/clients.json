@@ -1,0 +1,101 @@
+[
+  {
+    "id": "amplifi-capital",
+    "name": "AmpliFi Capital",
+    "industry": "Financial Services",
+    "portalName": "AmpliFi Operations Portal",
+    "portalUrl": "https://portal.amplificapital.example.com",
+    "embeddedBasePath": "/portal",
+    "primaryContact": "Taylor Grant",
+    "notes": "Client-facing portal includes executive reporting and service updates.",
+    "ticketProvider": "Tech Connect",
+    "buildVersion": "portal@0.1.0",
+    "lastUpdated": "2026-03-07T16:15:00Z",
+    "applications": [
+      {
+        "id": "amplifi-dashboard",
+        "name": "Executive Dashboard",
+        "environment": "Production",
+        "status": "live",
+        "uptime": "99.98%",
+        "responseTime": "210ms",
+        "lastChecked": "2026-03-07T16:20:00Z"
+      },
+      {
+        "id": "amplifi-reporting",
+        "name": "Reporting Sync",
+        "environment": "Production",
+        "status": "degraded",
+        "uptime": "98.92%",
+        "responseTime": "790ms",
+        "lastChecked": "2026-03-07T16:18:00Z"
+      }
+    ]
+  },
+  {
+    "id": "highlands-logistics",
+    "name": "Highlands Logistics",
+    "industry": "Logistics",
+    "portalName": "Highlands Fleet Portal",
+    "portalUrl": "https://portal.highlandsfleet.example.com",
+    "embeddedBasePath": "/portal",
+    "primaryContact": "Riley Dawson",
+    "notes": "Operational portal focused on fleet visibility and device health widgets.",
+    "ticketProvider": "Tech Connect",
+    "buildVersion": "portal@0.1.0",
+    "lastUpdated": "2026-03-07T14:02:00Z",
+    "applications": [
+      {
+        "id": "highlands-fleet",
+        "name": "Fleet Command",
+        "environment": "Production",
+        "status": "live",
+        "uptime": "99.94%",
+        "responseTime": "260ms",
+        "lastChecked": "2026-03-07T16:16:00Z"
+      },
+      {
+        "id": "highlands-telemetry",
+        "name": "Telemetry API",
+        "environment": "Production",
+        "status": "down",
+        "uptime": "95.20%",
+        "responseTime": "Timeout",
+        "lastChecked": "2026-03-07T16:17:00Z"
+      }
+    ]
+  },
+  {
+    "id": "riverbend-health",
+    "name": "Riverbend Health",
+    "industry": "Healthcare",
+    "portalName": "Riverbend Care Hub",
+    "portalUrl": "https://portal.riverbendcare.example.com",
+    "embeddedBasePath": "/portal",
+    "primaryContact": "Morgan Lee",
+    "notes": "Portal emphasizes care operations and secure knowledge delivery.",
+    "ticketProvider": "Internal Desk",
+    "buildVersion": "portal@0.1.0",
+    "lastUpdated": "2026-03-07T11:49:00Z",
+    "applications": [
+      {
+        "id": "riverbend-care-hub",
+        "name": "Care Hub",
+        "environment": "Production",
+        "status": "live",
+        "uptime": "99.99%",
+        "responseTime": "180ms",
+        "lastChecked": "2026-03-07T16:19:00Z"
+      },
+      {
+        "id": "riverbend-knowledge",
+        "name": "Knowledge Center",
+        "environment": "Production",
+        "status": "live",
+        "uptime": "99.87%",
+        "responseTime": "240ms",
+        "lastChecked": "2026-03-07T16:14:00Z"
+      }
+    ]
+  }
+]

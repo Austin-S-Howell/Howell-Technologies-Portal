@@ -1,0 +1,30 @@
+{
+  "name": "howell-technologies-portal",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Monorepo for the Howell Technologies admin portal and reusable PortalApp package.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @howell-technologies/operator-portal",
+    "dev:demo": "npm run dev --workspace @howell-technologies/client-portal-demo",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "preview": "npm run preview --workspace @howell-technologies/operator-portal",
+    "docker": "sh -c 'docker container rm -f howell-technologies-portal >/dev/null 2>&1 || true; while docker container inspect howell-technologies-portal >/dev/null 2>&1; do sleep 0.2; done; docker build -t howell-technologies-portal . && docker run -d --restart unless-stopped --name howell-technologies-portal -p ${PORT:-5173}:80 howell-technologies-portal'"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.2.0",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.4.1",
+    "jsdom": "^26.0.0",
+    "typescript": "^5.7.3",
+    "vite": "^6.2.0",
+    "vitest": "^3.0.5"
+  }
+}

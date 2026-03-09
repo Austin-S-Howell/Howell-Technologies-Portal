@@ -1,0 +1,18 @@
+[
+  {
+    "id": "incident-telemetry",
+    "clientId": "highlands-logistics",
+    "title": "Telemetry API outage",
+    "severity": "critical",
+    "summary": "API timeouts were detected during the last synthetic check cycle.",
+    "timestamp": "2026-03-07T16:17:00Z"
+  },
+  {
+    "id": "incident-reporting",
+    "clientId": "amplifi-capital",
+    "title": "Reporting sync latency",
+    "severity": "warning",
+    "summary": "Scheduled report syncs are completing, but the response time is above target.",
+    "timestamp": "2026-03-07T15:58:00Z"
+  }
+]
