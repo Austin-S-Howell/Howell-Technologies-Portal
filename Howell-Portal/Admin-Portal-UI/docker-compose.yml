@@ -3,10 +3,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        VITE_PUBLIC_BASE: /
+        VITE_STATIC_FE_ONLY: "false"
+        VITE_POC_API_BASE_URL: "${VITE_POC_API_BASE_URL:-http://localhost:8000}"
     image: howell-technologies-portal:latest
     container_name: howell-technologies-portal
     ports:
-      - "${PORT:-5173}:80"
+      - "${PORT:-5173}:8080"
     depends_on:
       - poc-api
     restart: unless-stopped
@@ -23,7 +27,16 @@ services:
       POC_API_ALLOWED_ORIGINS: "${POC_API_ALLOWED_ORIGINS:-http://localhost:5173}"
       POC_API_FRONTEND_REDIRECT_URL: "${POC_API_FRONTEND_REDIRECT_URL:-http://localhost:5173/demo-workbench}"
       POC_API_DATABASE_URL: "${POC_API_DATABASE_URL:-sqlite:////app/data/poc_api.db}"
+      POC_API_DB_HOST: "${POC_API_DB_HOST:-}"
+      POC_API_DB_PORT: "${POC_API_DB_PORT:-5432}"
+      POC_API_DB_NAME: "${POC_API_DB_NAME:-postgres}"
+      POC_API_DB_USER: "${POC_API_DB_USER:-postgres}"
+      POC_API_DB_PASSWORD: "${POC_API_DB_PASSWORD:-}"
+      POC_API_DB_SSL_MODE: "${POC_API_DB_SSL_MODE:-require}"
       POC_API_SESSION_SECRET: "${POC_API_SESSION_SECRET:-replace-this-in-production}"
+      POC_API_PORTAL_RUNTIME_INGEST_KEY: "${POC_API_PORTAL_RUNTIME_INGEST_KEY:-}"
+      POC_API_OPERATOR_USERS_SCHEMA: "${POC_API_OPERATOR_USERS_SCHEMA:-public}"
+      POC_API_OPERATOR_USERS_TABLE: "${POC_API_OPERATOR_USERS_TABLE:-operator_users}"
       POC_API_MS_CLIENT_ID: "${POC_API_MS_CLIENT_ID:-}"
       POC_API_MS_CLIENT_SECRET: "${POC_API_MS_CLIENT_SECRET:-}"
       POC_API_MS_TENANT_ID: "${POC_API_MS_TENANT_ID:-}"

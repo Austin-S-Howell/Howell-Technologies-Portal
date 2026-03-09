@@ -1,0 +1,136 @@
+name: Deploy Operator UI to Cloud Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: Git ref to checkout before build
+        required: true
+        default: main
+        type: string
+      gcp_project_id:
+        description: GCP project ID
+        required: true
+        type: string
+      gcp_region:
+        description: Cloud Run region
+        required: true
+        default: us-central1
+        type: string
+      artifact_repository:
+        description: Artifact Registry repository name
+        required: true
+        default: howell
+        type: string
+      service_name:
+        description: UI Cloud Run service name
+        required: true
+        default: howell-operator-ui
+        type: string
+      api_service_name:
+        description: API Cloud Run service name
+        required: true
+        default: howell-poc-api
+        type: string
+      build_image:
+        description: Build and push a new image before deploying
+        required: true
+        default: true
+        type: boolean
+      image_tag:
+        description: Image tag to build/deploy
+        required: true
+        default: latest
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_ref }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ inputs.gcp_region }}-docker.pkg.dev --quiet
+
+      - name: Resolve API URL from Cloud Run
+        run: |
+          API_URL=$(gcloud run services describe "${{ inputs.api_service_name }}" \
+            --region "${{ inputs.gcp_region }}" \
+            --project "${{ inputs.gcp_project_id }}" \
+            --format 'value(status.url)' 2>/dev/null || true)
+          if [ -z "${API_URL}" ]; then
+            echo "ERROR: Could not resolve URL for Cloud Run service '${{ inputs.api_service_name }}'."
+            echo "Deploy the API service first, then retry this workflow."
+            exit 1
+          fi
+          echo "API_URL=${API_URL}" >> "$GITHUB_ENV"
+          echo "Using API URL: ${API_URL}"
+
+      - name: Build and push image
+        if: ${{ inputs.build_image }}
+        run: |
+          IMAGE="${{ inputs.gcp_region }}-docker.pkg.dev/${{ inputs.gcp_project_id }}/${{ inputs.artifact_repository }}/${{ inputs.service_name }}"
+          docker build \
+            --build-arg VITE_PUBLIC_BASE="/" \
+            --build-arg VITE_STATIC_FE_ONLY=false \
+            --build-arg VITE_POC_API_BASE_URL="${API_URL}" \
+            -t "${IMAGE}:${{ inputs.image_tag }}" \
+            -f Howell-Portal/Admin-Portal-UI/Dockerfile \
+            Howell-Portal/Admin-Portal-UI
+          docker push "${IMAGE}:${{ inputs.image_tag }}"
+          echo "IMAGE=${IMAGE}" >> "$GITHUB_ENV"
+
+      - name: Deploy to Cloud Run
+        run: |
+          IMAGE="${IMAGE:-${{ inputs.gcp_region }}-docker.pkg.dev/${{ inputs.gcp_project_id }}/${{ inputs.artifact_repository }}/${{ inputs.service_name }}}"
+          gcloud run deploy "${{ inputs.service_name }}" \
+            --image "${IMAGE}:${{ inputs.image_tag }}" \
+            --region "${{ inputs.gcp_region }}" \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080 \
+            --min-instances 0 \
+            --max-instances 5 \
+            --project "${{ inputs.gcp_project_id }}"
+
+      - name: Smoke test deployed UI + API
+        run: |
+          set -euo pipefail
+          UI_URL=$(gcloud run services describe "${{ inputs.service_name }}" \
+            --region "${{ inputs.gcp_region }}" \
+            --project "${{ inputs.gcp_project_id }}" \
+            --format 'value(status.url)')
+          UI_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "${UI_URL}/login")
+          if [ "${UI_STATUS}" -lt 200 ] || [ "${UI_STATUS}" -ge 400 ]; then
+            echo "ERROR: UI smoke test failed with HTTP ${UI_STATUS}."
+            exit 1
+          fi
+          API_HEALTH_BODY=$(curl -sS "${API_URL}/health")
+          if ! echo "${API_HEALTH_BODY}" | grep -q '"status"[[:space:]]*:[[:space:]]*"ok"'; then
+            echo "ERROR: API health response did not include status=ok."
+            echo "Response: ${API_HEALTH_BODY}"
+            exit 1
+          fi
+
+      - name: Show service URL
+        run: |
+          URL=$(gcloud run services describe "${{ inputs.service_name }}" \
+            --region "${{ inputs.gcp_region }}" \
+            --project "${{ inputs.gcp_project_id }}" \
+            --format 'value(status.url)')
+          echo "UI deployed to: $URL"
+          echo "API URL baked into image: ${API_URL}"

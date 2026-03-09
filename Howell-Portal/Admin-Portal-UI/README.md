@@ -31,7 +31,7 @@ Build the admin portal image from the repo root:
 
 ```bash
 docker build -t howell-technologies-portal .
-docker run -p 5173:80 howell-technologies-portal
+docker run -p 5173:8080 howell-technologies-portal
 ```
 
 Or use the repo script:
@@ -44,6 +44,22 @@ npm run docker
 
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:8000`
+
+To point local Docker at Supabase instead of container-local SQLite, export these before `npm run docker`:
+
+```bash
+export POC_API_DB_HOST='db.jikujruqahhyqwnlqmbt.supabase.co'
+export POC_API_DB_PORT='5432'
+export POC_API_DB_NAME='postgres'
+export POC_API_DB_USER='postgres'
+export POC_API_DB_PASSWORD='YOUR_PASSWORD'
+export POC_API_DB_SSL_MODE='require'
+export POC_API_OPERATOR_USERS_SCHEMA='public'
+export POC_API_OPERATOR_USERS_TABLE='userPreference'
+export POC_API_SESSION_SECRET='YOUR_LOCAL_SESSION_SECRET'
+```
+
+This avoids URL-encoding problems when the database password contains special characters.
 
 To run frontend only:
 

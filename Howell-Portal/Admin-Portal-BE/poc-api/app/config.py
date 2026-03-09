@@ -1,4 +1,5 @@
 from functools import lru_cache
+from urllib.parse import quote
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -17,6 +18,12 @@ class Settings(BaseSettings):
     log_level: str = "info"
 
     database_url: str = "sqlite:///./poc_api.db"
+    db_host: str | None = None
+    db_port: int = 5432
+    db_name: str = "postgres"
+    db_user: str = "postgres"
+    db_password: str | None = None
+    db_ssl_mode: str = "require"
     session_secret: str = "replace-this-in-production"
     session_same_site: str = "lax"
     session_https_only: bool = False
@@ -47,6 +54,23 @@ class Settings(BaseSettings):
     @property
     def ms_configured(self) -> bool:
         return bool(self.ms_client_id and self.ms_client_secret and self.ms_tenant_id)
+
+    @property
+    def resolved_database_url(self) -> str:
+        if self.db_host and self.db_password:
+            encoded_password = quote(self.db_password, safe="")
+            return (
+                f"postgresql+psycopg://{self.db_user}:{encoded_password}"
+                f"@{self.db_host}:{self.db_port}/{self.db_name}?sslmode={self.db_ssl_mode}"
+            )
+
+        if self.database_url.startswith("postgresql://"):
+            return "postgresql+psycopg://" + self.database_url.removeprefix("postgresql://")
+
+        if self.database_url.startswith("postgres://"):
+            return "postgresql+psycopg://" + self.database_url.removeprefix("postgres://")
+
+        return self.database_url
 
 
 @lru_cache

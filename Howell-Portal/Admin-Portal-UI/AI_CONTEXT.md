@@ -185,6 +185,11 @@ This file is the canonical repo-memory document for AI agents working in `/Users
   - API workflow resolves UI Cloud Run URL for CORS + frontend redirect wiring
   - UI workflow resolves API Cloud Run URL and bakes it into the frontend image
   - operator portal NGINX container now listens on `8080` and runs as unprivileged `nginx`, matching Cloud Run-safe static hosting patterns used in HOG
+  - practical GitHub limitation: Actions only recognizes workflows from the repo root `.github/workflows`, so root-level copies were added for the Cloud Run deploy workflows
+- Local Docker stack correction:
+  - `docker-compose.yml` now maps frontend host port `5173` to container port `8080` to match the current NGINX listener
+  - local compose now passes through `POC_API_OPERATOR_USERS_SCHEMA`, `POC_API_OPERATOR_USERS_TABLE`, and `POC_API_PORTAL_RUNTIME_INGEST_KEY`
+  - added `Admin-Portal-UI/.env.docker.example` for local Supabase-backed Docker runs
 - Added operator login through backend database credential lookup:
   - backend route `POST /api/auth/operator/login`
   - backend route `GET /api/auth/operator/session`
