@@ -373,3 +373,5 @@ A copied snapshot of the external Austin AI portal context lives at [docs/refere
 - Frontend backend-guard behavior:
   - `apps/operator-portal/src/poc/api.ts` now checks `VITE_STATIC_FE_ONLY`.
   - When static-only is enabled, backend API helper calls fail fast with clear error text instead of attempting network requests.
+- Workflow stability fix:
+  - replaced heredoc env-file write in deploy workflow with `printf` writes to avoid GitHub runner heredoc parsing failures (`unexpected end of file`).

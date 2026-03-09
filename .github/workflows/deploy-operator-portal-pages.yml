@@ -48,15 +48,10 @@ jobs:
       - name: Configure frontend build mode
         run: |
           if [ "${{ inputs.static_fe_only }}" = "true" ]; then
-            cat > apps/operator-portal/.env.production.local <<'EOF'
-            VITE_STATIC_FE_ONLY=true
-            VITE_POC_API_BASE_URL=
-            EOF
+            printf "VITE_STATIC_FE_ONLY=true\nVITE_POC_API_BASE_URL=\n" > apps/operator-portal/.env.production.local
             echo "Configured static frontend-only deployment build."
           else
-            cat > apps/operator-portal/.env.production.local <<'EOF'
-            VITE_STATIC_FE_ONLY=false
-            EOF
+            printf "VITE_STATIC_FE_ONLY=false\n" > apps/operator-portal/.env.production.local
             echo "Configured frontend build with backend integration enabled."
           fi
         working-directory: Howell-Portal/Admin-Portal-UI
