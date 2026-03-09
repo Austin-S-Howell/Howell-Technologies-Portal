@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Howell-Portal/Admin-Portal-UI
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Howell-Portal/Admin-Portal-UI/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Howell-Portal/Admin-Portal-UI
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Howell-Portal/Admin-Portal-UI/package-lock.json
+
+      - run: npm ci
+      - run: npm run test
+
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Howell-Portal/Admin-Portal-UI
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Howell-Portal/Admin-Portal-UI/package-lock.json
+
+      - run: npm ci
+      - run: npm run build
+
+  smoke:
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+      - test
+      - build
+    defaults:
+      run:
+        working-directory: Howell-Portal/Admin-Portal-UI
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Howell-Portal/Admin-Portal-UI/package-lock.json
+
+      - run: npm ci
+      - run: npm run smoke

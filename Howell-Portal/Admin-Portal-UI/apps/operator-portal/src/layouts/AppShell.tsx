@@ -1,74 +1,54 @@
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import howellLogo from "../assets/howell-logo.png";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getOperatorPortalBuildLabel } from "../config/buildVersion";
+import { DesktopAppShell } from "./DesktopAppShell";
+import { MobileAppShell } from "./MobileAppShell";
 import { logout } from "../services/mockAuth";
 import { readSession } from "../services/sessionStorage";
 
-const navigation = [
-  { to: "/dashboard", label: "Dashboard" },
-  { to: "/clients", label: "Clients" },
-  { to: "/status", label: "Application Status" },
-  { to: "/demo-workbench", label: "POC Generator" },
-];
+const MOBILE_QUERY = "(max-width: 980px)";
+
+function getIsMobile() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return false;
+  }
+  return window.matchMedia(MOBILE_QUERY).matches;
+}
 
 export function AppShell() {
   const session = readSession();
   const navigate = useNavigate();
+  const [isMobile, setIsMobile] = useState(getIsMobile);
   const buildLabel = getOperatorPortalBuildLabel();
-  const initials = session?.name
-    ?.split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return;
+    }
+    const mediaQuery = window.matchMedia(MOBILE_QUERY);
+    const handleChange = (event: MediaQueryListEvent) => {
+      setIsMobile(event.matches);
+    };
+
+    setIsMobile(mediaQuery.matches);
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", handleChange);
+      return () => mediaQuery.removeEventListener("change", handleChange);
+    }
+
+    mediaQuery.addListener(handleChange);
+    return () => mediaQuery.removeListener(handleChange);
+  }, []);
 
   async function handleLogout() {
     await logout();
     navigate("/login");
   }
 
-  return (
-    <div className="app-shell">
-      <header className="app-shell__topbar">
-        <Link to="/dashboard" className="app-shell__brand">
-          <span className="app-shell__brand-mark">
-            <img src={howellLogo} alt="Howell Technologies" />
-          </span>
-          <div>
-            <strong>Howell Technologies</strong>
-            <span>{`Admin Portal | ${buildLabel}`}</span>
-          </div>
-        </Link>
+  if (isMobile) {
+    return <MobileAppShell session={session} buildLabel={buildLabel} onLogout={handleLogout} />;
+  }
 
-        <nav className="app-shell__nav" aria-label="Primary">
-          {navigation.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) => (isActive ? "app-shell__nav-link is-active" : "app-shell__nav-link")}
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className="app-shell__topbar-actions">
-          <div className="app-shell__operator-inline">
-            <span className="app-shell__operator-avatar">{initials || "HT"}</span>
-            <div className="app-shell__operator-meta">
-              <p>{session?.name}</p>
-              <span>{session?.role}</span>
-            </div>
-          </div>
-          <button onClick={handleLogout} className="app-shell__logout">
-            Sign out
-          </button>
-        </div>
-      </header>
-
-      <main className="app-shell__content">
-        <Outlet />
-      </main>
-    </div>
-  );
+  return <DesktopAppShell session={session} buildLabel={buildLabel} onLogout={handleLogout} />;
 }

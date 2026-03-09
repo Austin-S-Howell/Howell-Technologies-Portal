@@ -17,6 +17,7 @@
     "build:version:patch": "node build.js patch",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
+    "smoke": "bash ./scripts/smoke-operator.sh",
     "preview": "npm run preview --workspace @howell-technologies/operator-portal",
     "docker": "sh -c 'docker container rm -f howell-technologies-portal howell-technologies-poc-api >/dev/null 2>&1 || true; docker compose up --build -d --remove-orphans'",
     "docker:frontend": "sh -c 'docker container rm -f howell-technologies-portal >/dev/null 2>&1 || true; while docker container inspect howell-technologies-portal >/dev/null 2>&1; do sleep 0.2; done; docker build -t howell-technologies-portal . && docker run -d --restart unless-stopped --name howell-technologies-portal -p ${PORT:-5173}:80 howell-technologies-portal'",

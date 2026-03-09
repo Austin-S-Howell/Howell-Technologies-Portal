@@ -319,3 +319,30 @@ This file is the canonical repo-memory document for AI agents working in `/Users
 ## Austin AI Reference
 
 A copied snapshot of the external Austin AI portal context lives at [docs/reference/AUSTIN-AI.md](/Users/austinhowell/Desktop/Howell-Technologies-Portal/docs/reference/AUSTIN-AI.md). Use it as historical/reference context for portal UX and data behavior when extending this repo.
+
+## Mobile + App Icon Decisions (Latest)
+
+- Operator portal now uses separate shell components for desktop and mobile so styles/layout behavior are isolated:
+  - desktop shell: `apps/operator-portal/src/layouts/DesktopAppShell.tsx`
+  - mobile shell: `apps/operator-portal/src/layouts/MobileAppShell.tsx`
+  - shell switcher: `apps/operator-portal/src/layouts/AppShell.tsx` using viewport query `(max-width: 980px)`
+- Mobile styling is isolated in its own stylesheet:
+  - `apps/operator-portal/src/styles.mobile.css`
+  - desktop/general styles remain in `apps/operator-portal/src/styles.css`
+- Mobile shell behavior:
+  - dedicated mobile header + compact user row
+  - mobile tab navigation with icons (Home, Clients, Status, POC)
+  - scrollable mobile content pane inside full-height layout
+- Browser/app branding updates for operator portal:
+  - tab title set to `HT Portal`
+  - favicon uses Howell logo
+  - iOS add-to-home title set to `HT Portal`
+  - apple-touch-icon and web manifest are wired in `apps/operator-portal/index.html`
+  - generated icon assets live in `apps/operator-portal/public/`
+    - `favicon-16x16.png`
+    - `favicon-32x32.png`
+    - `apple-touch-icon.png`
+    - `android-chrome-192x192.png`
+    - `android-chrome-512x512.png`
+    - `howell-logo.png`
+    - `site.webmanifest`

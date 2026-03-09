@@ -1,0 +1,21 @@
+{
+  "name": "HT Portal",
+  "short_name": "HT Portal",
+  "description": "Howell Technologies admin and demo portal.",
+  "display": "standalone",
+  "start_url": "/login",
+  "background_color": "#ececef",
+  "theme_color": "#b86b3d",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
