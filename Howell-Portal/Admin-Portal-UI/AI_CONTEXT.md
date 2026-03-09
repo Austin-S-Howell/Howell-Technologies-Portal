@@ -339,11 +339,23 @@ A copied snapshot of the external Austin AI portal context lives at [docs/refere
   - mobile route transitions now have subtle content entry animation for a more native app feel
   - safe-area handling improved for top and bottom insets (`env(safe-area-inset-top/bottom)`)
   - scrollable mobile content pane inside full-height layout
-  - mobile header no longer renders the old name/role strip below the header
-  - header now has avatar + sign-out actions on the right
-  - avatar routes to profile settings (`/profile`)
-  - mobile bottom nav now includes a `Profile` tab (mobile shell only)
-  - mobile logo alignment in the top-left brand mark was adjusted for better centering
+- mobile header no longer renders the old name/role strip below the header
+- header now has avatar + sign-out actions on the right
+- avatar routes to profile settings (`/profile`)
+- mobile bottom nav now includes a `Profile` tab (mobile shell only)
+- mobile logo alignment in the top-left brand mark was adjusted for better centering
+- mobile layout overlap fix:
+  - mobile shell now uses non-overlapping rows (`header`, `content`, `bottom nav`) so content is not covered by header/nav.
+  - bottom tab bar now uses equal-width flex tabs with clipped labels to prevent right-edge overflow/off-screen tabs.
+- iPhone install prompt:
+  - added mobile Safari/iPhone-only install prompt in `MobileAppShell`.
+  - prompt appears only when not already installed as standalone and if not recently dismissed.
+  - includes `Install` (shows Add-to-Home-Screen steps) and `Not now`.
+  - `Not now` stores dismissal in localStorage for 7 days (`howell.mobile.installPromptDismissedAt.v1`).
+- Mobile background polish:
+  - mobile viewport (`html`, `body`, `#root`) now uses branded gradient background to avoid white bands at top/bottom.
+  - mobile header and bottom nav backgrounds were retuned to darker branded surfaces to keep color continuity.
+  - mobile content pane uses a soft tinted surface while keeping full-shell non-scroll viewport behavior.
 - Profile page:
   - added `apps/operator-portal/src/pages/ProfileSettingsPage.tsx`
   - route added at `/profile`

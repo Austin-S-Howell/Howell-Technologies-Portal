@@ -1,12 +1,20 @@
 @media (max-width: 980px) {
+  html,
   body {
     height: 100dvh;
+    margin: 0;
     overflow: hidden;
     overscroll-behavior: none;
+    background:
+      radial-gradient(circle at top right, rgba(184, 107, 61, 0.26), transparent 34%),
+      linear-gradient(180deg, #59606c 0%, #6a707b 52%, #565d68 100%);
   }
 
   #root {
     height: 100dvh;
+    background:
+      radial-gradient(circle at top right, rgba(184, 107, 61, 0.26), transparent 34%),
+      linear-gradient(180deg, #59606c 0%, #6a707b 52%, #565d68 100%);
   }
 }
 
@@ -14,8 +22,10 @@
   min-height: 100dvh;
   height: 100dvh;
   display: grid;
-  grid-template-rows: auto 1fr;
-  background: var(--ht-bg);
+  grid-template-rows: auto 1fr auto;
+  background:
+    radial-gradient(circle at top right, rgba(184, 107, 61, 0.22), transparent 32%),
+    linear-gradient(180deg, #59606c 0%, #6a707b 52%, #565d68 100%);
   position: relative;
   isolation: isolate;
   -webkit-tap-highlight-color: transparent;
@@ -24,17 +34,16 @@
 }
 
 .mobile-shell__header {
-  position: sticky;
-  top: 0;
-  z-index: 32;
+  position: relative;
+  z-index: 3;
   padding: calc(12px + env(safe-area-inset-top)) 14px 12px;
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 10px;
   align-items: center;
   background:
-    radial-gradient(circle at right top, rgba(184, 107, 61, 0.2), transparent 34%),
-    linear-gradient(180deg, var(--ht-slate) 0%, var(--ht-slate-deep) 100%);
+    radial-gradient(circle at right top, rgba(184, 107, 61, 0.26), transparent 34%),
+    linear-gradient(180deg, rgba(89, 96, 108, 0.98) 0%, rgba(86, 93, 104, 0.98) 100%);
   border-bottom: 1px solid rgba(255, 255, 255, 0.16);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -126,41 +135,35 @@
 }
 
 .mobile-shell__tabs {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 40;
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(76px, 1fr);
-  gap: 8px;
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
   padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
-  background: rgba(236, 236, 239, 0.92);
-  border-top: 1px solid var(--ht-border);
-  overflow-x: auto;
-  scrollbar-width: none;
-  box-shadow: 0 -14px 30px rgba(35, 38, 46, 0.16);
+  background: linear-gradient(180deg, rgba(92, 99, 110, 0.96), rgba(82, 89, 100, 0.96));
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  overflow-x: hidden;
+  box-shadow: 0 -12px 24px rgba(18, 20, 26, 0.24);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
 
-.mobile-shell__tabs::-webkit-scrollbar {
-  display: none;
-}
-
 .mobile-shell__tab {
-  min-height: 58px;
-  border: 1px solid rgba(97, 102, 114, 0.2);
-  border-radius: 14px;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 56px;
+  border: none;
+  border-radius: 12px;
   display: grid;
   place-items: center;
   gap: 4px;
   padding: 7px 8px;
-  color: var(--ht-slate-deep);
-  background: rgba(255, 255, 255, 0.88);
+  color: rgba(244, 248, 251, 0.88);
+  background: transparent;
   font-weight: 700;
   transform: translateY(0);
+  position: relative;
   transition:
     transform 180ms ease,
     box-shadow 180ms ease,
@@ -177,26 +180,45 @@
   display: grid;
   place-items: center;
   font-size: 1rem;
-  transition: background 180ms ease, color 180ms ease;
+  color: rgba(244, 248, 251, 0.88);
+  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
 }
 
 .mobile-shell__tab-label {
-  font-size: 0.71rem;
+  font-size: 0.69rem;
   line-height: 1;
   letter-spacing: 0.01em;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .mobile-shell__tab.is-active {
-  color: #ffffff;
-  border-color: rgba(184, 107, 61, 0.55);
-  background: linear-gradient(135deg, var(--ht-copper), #c78660 52%, var(--ht-slate));
-  box-shadow: 0 12px 22px rgba(78, 48, 31, 0.3);
+  color: var(--ht-copper-deep);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow:
+    inset 0 0 0 1px rgba(184, 107, 61, 0.32),
+    0 8px 16px rgba(31, 35, 42, 0.22);
   transform: translateY(-5px);
 }
 
 .mobile-shell__tab.is-active .mobile-shell__tab-icon {
-  background: rgba(255, 255, 255, 0.18);
-  color: #ffffff;
+  background: rgba(184, 107, 61, 0.16);
+  color: var(--ht-copper-deep);
+  transform: scale(1.06);
+}
+
+.mobile-shell__tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  width: 22px;
+  height: 3px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--ht-copper), #d08a62);
 }
 
 .mobile-shell__tab:active {
@@ -206,10 +228,85 @@
 .mobile-shell__content {
   min-height: 0;
   overflow: auto;
-  padding: 14px 14px calc(96px + env(safe-area-inset-bottom));
+  padding: 14px;
+  background: rgba(245, 247, 251, 0.92);
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+}
+
+.mobile-install-prompt {
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(184, 107, 61, 0.36);
+  background: linear-gradient(180deg, rgba(255, 250, 246, 0.97), rgba(255, 244, 235, 0.94));
+  box-shadow: 0 10px 20px rgba(74, 43, 30, 0.12);
+  display: grid;
+  gap: 10px;
+}
+
+.mobile-install-prompt__head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.mobile-install-prompt__icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--ht-copper), #d08a62);
+}
+
+.mobile-install-prompt__head strong {
+  display: block;
+  color: #643821;
+}
+
+.mobile-install-prompt__head p {
+  margin: 4px 0 0;
+  color: #7f4e34;
+  font-size: 0.84rem;
+  line-height: 1.42;
+}
+
+.mobile-install-prompt__steps {
+  margin: 0;
+  padding-left: 18px;
+  color: #7f4e34;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  display: grid;
+  gap: 4px;
+}
+
+.mobile-install-prompt__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.mobile-install-prompt__button {
+  border: none;
+  border-radius: 999px;
+  padding: 9px 12px;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.mobile-install-prompt__button--primary {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--ht-copper), #d08a62);
+}
+
+.mobile-install-prompt__button--secondary {
+  color: var(--ht-slate-deep);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(97, 102, 114, 0.25);
 }
 
 .mobile-shell__page {
