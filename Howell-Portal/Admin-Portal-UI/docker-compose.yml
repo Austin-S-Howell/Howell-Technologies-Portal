@@ -1,0 +1,37 @@
+services:
+  operator-portal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: howell-technologies-portal:latest
+    container_name: howell-technologies-portal
+    ports:
+      - "${PORT:-5173}:80"
+    depends_on:
+      - poc-api
+    restart: unless-stopped
+
+  poc-api:
+    build:
+      context: ../Admin-Portal-BE/poc-api
+      dockerfile: Dockerfile
+    image: howell-technologies-poc-api:latest
+    container_name: howell-technologies-poc-api
+    ports:
+      - "${POC_API_PORT:-8000}:8000"
+    environment:
+      POC_API_ALLOWED_ORIGINS: "${POC_API_ALLOWED_ORIGINS:-http://localhost:5173}"
+      POC_API_FRONTEND_REDIRECT_URL: "${POC_API_FRONTEND_REDIRECT_URL:-http://localhost:5173/demo-workbench}"
+      POC_API_DATABASE_URL: "${POC_API_DATABASE_URL:-sqlite:////app/data/poc_api.db}"
+      POC_API_SESSION_SECRET: "${POC_API_SESSION_SECRET:-replace-this-in-production}"
+      POC_API_MS_CLIENT_ID: "${POC_API_MS_CLIENT_ID:-}"
+      POC_API_MS_CLIENT_SECRET: "${POC_API_MS_CLIENT_SECRET:-}"
+      POC_API_MS_TENANT_ID: "${POC_API_MS_TENANT_ID:-}"
+      POC_API_MS_REDIRECT_URI: "${POC_API_MS_REDIRECT_URI:-http://localhost:8000/api/auth/microsoft/callback}"
+      POC_API_MS_SCOPES_CSV: "${POC_API_MS_SCOPES_CSV:-openid,profile,offline_access,User.Read,Report.Read.All,Workspace.Read.All}"
+    volumes:
+      - poc_api_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  poc_api_data:
