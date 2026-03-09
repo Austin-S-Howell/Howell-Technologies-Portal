@@ -11,6 +11,10 @@ type MobileAppShellProps = {
 
 export function MobileAppShell({ session, buildLabel, onLogout }: MobileAppShellProps) {
   const location = useLocation();
+  const mobileNavigation = [
+    ...shellNavigation,
+    { to: "/profile", label: "Profile", shortLabel: "Profile", icon: "pi pi-user" },
+  ];
   const initials = session?.name
     ?.split(" ")
     .map((part) => part[0])
@@ -30,21 +34,24 @@ export function MobileAppShell({ session, buildLabel, onLogout }: MobileAppShell
             <span>{`Admin Portal | ${buildLabel}`}</span>
           </div>
         </Link>
-        <button onClick={onLogout} className="mobile-shell__logout" aria-label="Sign out">
-          <i className="pi pi-sign-out" aria-hidden="true" />
-        </button>
+        <div className="mobile-shell__header-actions">
+          <NavLink
+            to="/profile"
+            className={({ isActive }) =>
+              isActive ? "mobile-shell__avatar-link is-active" : "mobile-shell__avatar-link"
+            }
+            aria-label="Open profile settings"
+          >
+            <span>{initials || "HT"}</span>
+          </NavLink>
+          <button onClick={onLogout} className="mobile-shell__logout" aria-label="Sign out">
+            <i className="pi pi-sign-out" aria-hidden="true" />
+          </button>
+        </div>
       </header>
 
-      <section className="mobile-shell__operator" aria-label="Logged in user">
-        <span className="mobile-shell__operator-avatar">{initials || "HT"}</span>
-        <div className="mobile-shell__operator-meta">
-          <p>{session?.name}</p>
-          <span>{session?.role}</span>
-        </div>
-      </section>
-
       <nav className="mobile-shell__tabs" aria-label="Primary">
-        {shellNavigation.map((item) => (
+        {mobileNavigation.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}

@@ -339,6 +339,15 @@ A copied snapshot of the external Austin AI portal context lives at [docs/refere
   - mobile route transitions now have subtle content entry animation for a more native app feel
   - safe-area handling improved for top and bottom insets (`env(safe-area-inset-top/bottom)`)
   - scrollable mobile content pane inside full-height layout
+  - mobile header no longer renders the old name/role strip below the header
+  - header now has avatar + sign-out actions on the right
+  - avatar routes to profile settings (`/profile`)
+  - mobile bottom nav now includes a `Profile` tab (mobile shell only)
+  - mobile logo alignment in the top-left brand mark was adjusted for better centering
+- Profile page:
+  - added `apps/operator-portal/src/pages/ProfileSettingsPage.tsx`
+  - route added at `/profile`
+  - page shows operator identity details (name, email, role, user ID, build label)
 - Client environment detection:
   - added `apps/operator-portal/src/utils/clientEnvironment.ts` for centralized mobile/desktop + browser-family detection.
   - app shell now combines viewport + UA/touch heuristics to classify device profile (`mobile` or `desktop`).

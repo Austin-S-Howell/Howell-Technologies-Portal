@@ -8,6 +8,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { DemoWorkbenchPage } from "./pages/DemoWorkbenchPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { ProfileSettingsPage } from "./pages/ProfileSettingsPage";
 
 function resolveRouterBasename() {
   const base = import.meta.env.BASE_URL;
@@ -29,6 +30,7 @@ export default function App() {
             <Route path="/clients" element={<ClientsPage />} />
             <Route path="/clients/:clientId" element={<ClientDetailPage />} />
             <Route path="/status" element={<ApplicationStatusPage />} />
+            <Route path="/profile" element={<ProfileSettingsPage />} />
             <Route path="/demo-workbench/*" element={<DemoWorkbenchPage />} />
           </Route>
         </Route>
