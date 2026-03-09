@@ -5,20 +5,12 @@ import { DesktopAppShell } from "./DesktopAppShell";
 import { MobileAppShell } from "./MobileAppShell";
 import { logout } from "../services/mockAuth";
 import { readSession } from "../services/sessionStorage";
-
-const MOBILE_QUERY = "(max-width: 980px)";
-
-function getIsMobile() {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-    return false;
-  }
-  return window.matchMedia(MOBILE_QUERY).matches;
-}
+import { detectClientEnvironment, MOBILE_QUERY } from "../utils/clientEnvironment";
 
 export function AppShell() {
   const session = readSession();
   const navigate = useNavigate();
-  const [isMobile, setIsMobile] = useState(getIsMobile);
+  const [clientEnvironment, setClientEnvironment] = useState(detectClientEnvironment);
   const buildLabel = getOperatorPortalBuildLabel();
 
   useEffect(() => {
@@ -26,27 +18,51 @@ export function AppShell() {
       return;
     }
     const mediaQuery = window.matchMedia(MOBILE_QUERY);
-    const handleChange = (event: MediaQueryListEvent) => {
-      setIsMobile(event.matches);
+
+    const updateEnvironment = () => {
+      setClientEnvironment(detectClientEnvironment());
     };
 
-    setIsMobile(mediaQuery.matches);
+    const handleChange = () => {
+      updateEnvironment();
+    };
+
+    updateEnvironment();
+    window.addEventListener("resize", handleChange);
+    window.addEventListener("orientationchange", handleChange);
 
     if (typeof mediaQuery.addEventListener === "function") {
       mediaQuery.addEventListener("change", handleChange);
-      return () => mediaQuery.removeEventListener("change", handleChange);
+      return () => {
+        mediaQuery.removeEventListener("change", handleChange);
+        window.removeEventListener("resize", handleChange);
+        window.removeEventListener("orientationchange", handleChange);
+      };
     }
 
     mediaQuery.addListener(handleChange);
-    return () => mediaQuery.removeListener(handleChange);
+    return () => {
+      mediaQuery.removeListener(handleChange);
+      window.removeEventListener("resize", handleChange);
+      window.removeEventListener("orientationchange", handleChange);
+    };
   }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    document.documentElement.dataset.htDevice = clientEnvironment.deviceProfile;
+    document.documentElement.dataset.htBrowser = clientEnvironment.browserFamily;
+    document.documentElement.dataset.htInput = clientEnvironment.isTouchInput ? "touch" : "pointer";
+  }, [clientEnvironment]);
 
   async function handleLogout() {
     await logout();
     navigate("/login");
   }
 
-  if (isMobile) {
+  if (clientEnvironment.deviceProfile === "mobile") {
     return <MobileAppShell session={session} buildLabel={buildLabel} onLogout={handleLogout} />;
   }
 

@@ -332,7 +332,20 @@ A copied snapshot of the external Austin AI portal context lives at [docs/refere
 - Mobile shell behavior:
   - dedicated mobile header + compact user row
   - mobile tab navigation with icons (Home, Clients, Status, POC)
+  - mobile tabs are anchored at the bottom of the viewport (fixed bottom tab bar)
+  - active tab is visually highlighted and has subtle up/down motion feedback for page awareness
+  - mobile tab UX is now touch-optimized with smoother micro-interactions (tap scaling, icon capsule state, and elevated active state)
+  - mobile content area now uses momentum scrolling (`-webkit-overflow-scrolling: touch`) and overscroll containment for app-like behavior
+  - mobile route transitions now have subtle content entry animation for a more native app feel
+  - safe-area handling improved for top and bottom insets (`env(safe-area-inset-top/bottom)`)
   - scrollable mobile content pane inside full-height layout
+- Client environment detection:
+  - added `apps/operator-portal/src/utils/clientEnvironment.ts` for centralized mobile/desktop + browser-family detection.
+  - app shell now combines viewport + UA/touch heuristics to classify device profile (`mobile` or `desktop`).
+  - runtime identifiers are written to document root for inspection/styling hooks:
+    - `data-ht-device` (`mobile`/`desktop`)
+    - `data-ht-browser` (`chrome`/`safari`/`firefox`/`edge`/`opera`/`samsung-internet`/`unknown`)
+    - `data-ht-input` (`touch`/`pointer`)
 - Browser/app branding updates for operator portal:
   - tab title set to `HT Portal`
   - favicon uses Howell logo

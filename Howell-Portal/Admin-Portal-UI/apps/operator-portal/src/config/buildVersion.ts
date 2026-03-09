@@ -1,4 +1,4 @@
-export const OPERATOR_PORTAL_BUILD_VERSION = "1.0.1";
+export const OPERATOR_PORTAL_BUILD_VERSION = "1.0.2";
 
 export function getOperatorPortalBuildLabel() {
   return `V${OPERATOR_PORTAL_BUILD_VERSION}`;

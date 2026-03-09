@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import howellLogo from "../assets/howell-logo.png";
 import type { OperatorSession } from "../types";
 import { shellNavigation } from "./shellNavigation";
@@ -10,6 +10,7 @@ type MobileAppShellProps = {
 };
 
 export function MobileAppShell({ session, buildLabel, onLogout }: MobileAppShellProps) {
+  const location = useLocation();
   const initials = session?.name
     ?.split(" ")
     .map((part) => part[0])
@@ -49,14 +50,18 @@ export function MobileAppShell({ session, buildLabel, onLogout }: MobileAppShell
             to={item.to}
             className={({ isActive }) => (isActive ? "mobile-shell__tab is-active" : "mobile-shell__tab")}
           >
-            <i className={item.icon} aria-hidden="true" />
-            <span>{item.shortLabel}</span>
+            <span className="mobile-shell__tab-icon">
+              <i className={item.icon} aria-hidden="true" />
+            </span>
+            <span className="mobile-shell__tab-label">{item.shortLabel}</span>
           </NavLink>
         ))}
       </nav>
 
       <main className="mobile-shell__content">
-        <Outlet />
+        <section key={`${location.pathname}:${location.search}`} className="mobile-shell__page">
+          <Outlet />
+        </section>
       </main>
     </div>
   );
