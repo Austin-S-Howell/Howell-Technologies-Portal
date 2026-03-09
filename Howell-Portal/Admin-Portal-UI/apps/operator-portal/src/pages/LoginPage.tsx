@@ -8,8 +8,8 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/dashboard";
-  const [email, setEmail] = useState("austin@howelltechnologies.com");
-  const [password, setPassword] = useState("admin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 

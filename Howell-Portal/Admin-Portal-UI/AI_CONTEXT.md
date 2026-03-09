@@ -346,3 +346,22 @@ A copied snapshot of the external Austin AI portal context lives at [docs/refere
     - `android-chrome-512x512.png`
     - `howell-logo.png`
     - `site.webmanifest`
+
+## GitHub Pages Deploy (Manual)
+
+- Added a manual deploy workflow at repo root:
+  - `.github/workflows/deploy-operator-portal-pages.yml`
+- Trigger mode: `workflow_dispatch` only (manual run from Actions tab).
+- Workflow input:
+  - `use_custom_domain` (boolean, default `false`)
+  - when `true`, deploy includes `CNAME` for `portal.howelltechnologies.com`
+  - when `false`, deploy omits `CNAME` so default GitHub Pages URL works before DNS is ready
+- Deployment target: GitHub Pages environment using Actions artifact upload/deploy.
+- Build target is only operator portal:
+  - run from `Howell-Portal/Admin-Portal-UI`
+  - command: `npm run build --workspace @howell-technologies/operator-portal`
+- Pages artifact path:
+  - `Howell-Portal/Admin-Portal-UI/apps/operator-portal/dist`
+- Custom domain support:
+  - added `apps/operator-portal/public/CNAME` with `portal.howelltechnologies.com`
+  - workflow includes a guard step to ensure `dist/CNAME` exists before upload.
