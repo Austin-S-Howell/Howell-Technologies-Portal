@@ -1,0 +1,16 @@
+{
+  "extends": "../Admin-Portal-UI/tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+    "emitDeclarationOnly": false,
+    "noEmit": false
+  },
+  "include": [
+    "src/index.ts",
+    "src/PortalShell.tsx",
+    "src/runtimeStatus.ts",
+    "src/types.ts"
+  ]
+}

@@ -16,12 +16,12 @@ This file is the canonical repo-memory document for AI agents working in `/Users
 - Internal app: `apps/operator-portal`
 - Demo consumer: `apps/client-portal-demo`
 - Private package: `packages/portal` published as `@howell-technologies/portal`
-- Backend API: `apps/poc-api` (FastAPI + SQLite)
+- Backend API: `apps/poc-api` (FastAPI + SQLModel, SQLite by default, Supabase/Postgres-compatible)
 
 ## Product Intent
 
 ### Short Term
-- Run an internal Howell Technologies admin portal with mock-auth login from JSON.
+- Run an internal Howell Technologies admin portal with mock/static auth for demos and backend-backed operator login for deployed environments.
 - Manage client records and see the current status of client applications.
 - Expose a high-visibility dashboard with live, degraded, and down application summaries.
 - House a reusable `PortalApp` package for homepage widgets + Power BI reports + multi-view composition.
@@ -49,15 +49,17 @@ This file is the canonical repo-memory document for AI agents working in `/Users
 ### `apps/poc-api` Owns
 - Microsoft OAuth session callbacks and cookie session lifecycle
 - Power BI workspace/report discovery + embed-token generation
-- Per-user persisted POC configs and multi-view records in SQLite
+- Per-user persisted POC configs and multi-view records in SQLModel-backed storage (SQLite locally, managed Postgres/Supabase-compatible)
 
 ## Key Implementation Defaults
 
-- v1 uses frontend-only mocks for auth, clients, and app status.
+- v1 still supports frontend-only mocks for demos, while deployed operator login can use the backend session flow.
 - POC Generator now uses backend-assisted Microsoft auth + workspace fetches.
 - Branding is config-driven from day one.
 - Primary package export is `PortalApp`.
-- Operator auth is intentionally in-memory only, so a full page refresh always returns the user to `/login`.
+- Operator auth has two modes:
+  - frontend-only mock mode for static/demo builds
+  - backend session mode when `VITE_STATIC_FE_ONLY=false`
 - Agents should continue recording every meaningful implementation addition and repo-level discovery in this file.
 
 ## Current UX Direction
@@ -74,7 +76,8 @@ This file is the canonical repo-memory document for AI agents working in `/Users
 
 ### Admin Portal
 - React + Vite internal operations app exists under `apps/operator-portal`.
-- Mock JSON auth is implemented for staff login.
+- Mock JSON auth still exists for local/static demo login.
+- Backend operator auth is also implemented and can validate usernames/passwords from a database table.
 - Protected routes are implemented for:
   - dashboard
   - clients list
@@ -163,6 +166,49 @@ This file is the canonical repo-memory document for AI agents working in `/Users
 - Updated root `npm run docker` to start the full FE+BE stack (compose) so backend is always available during Docker testing.
 
 ### 2026-03-09
+- Repositioned `Portal-Library/` into the actual reusable client package target:
+  - it now exports a generic authenticated portal shell and heartbeat helpers
+  - it no longer owns report generation or embed behavior
+  - local Vite usage in that folder is now only a preview for the package
+- Added portal runtime monitoring flow for Howell oversight:
+  - client package can post heartbeats to backend `POST /api/runtime-status/heartbeat`
+  - backend exposes `GET /api/runtime-status/applications`
+  - operator portal now overlays live heartbeat data onto the existing client/application inventory with mock fallback
+- Added Cloud Run deployment scaffolding for the backend:
+  - backend Dockerfile now respects Cloud Run `PORT`
+  - backend session cookie policy is env-configurable (`same_site`, `https_only`) for separate frontend/API domains
+  - manual workflow added at `.github/workflows/deploy-api-cloud-run.yml`
+  - example env files added for backend Cloud Run config and operator frontend backend-integrated production config
+- Added HOG-style split Cloud Run deployment scaffolding for the operator platform:
+  - separate UI workflow at `.github/workflows/deploy-ui-cloud-run.yml`
+  - separate API workflow at `.github/workflows/deploy-api-cloud-run.yml`
+  - API workflow resolves UI Cloud Run URL for CORS + frontend redirect wiring
+  - UI workflow resolves API Cloud Run URL and bakes it into the frontend image
+  - operator portal NGINX container now listens on `8080` and runs as unprivileged `nginx`, matching Cloud Run-safe static hosting patterns used in HOG
+- Added operator login through backend database credential lookup:
+  - backend route `POST /api/auth/operator/login`
+  - backend route `GET /api/auth/operator/session`
+  - backend route `POST /api/auth/operator/logout`
+  - operator UI login now uses backend auth when `VITE_STATIC_FE_ONLY=false`, with mock fallback for static/demo builds
+  - database table contract is currently minimal and plaintext:
+    - `username`
+    - `password`
+  - invalid/missing matches return the exact login failure message: `Login failed: Incorrect username/password combo.`
+- Cloud Run / managed DB direction update:
+  - BigQuery is no longer part of the operator login path
+  - Supabase Postgres can now back the API by setting `POC_API_DATABASE_URL`
+  - operator login table location is configured with `POC_API_OPERATOR_USERS_SCHEMA` and `POC_API_OPERATOR_USERS_TABLE`
+  - the API deploy workflow can also construct the Supabase/Postgres URL from a `POC_API_DB_PASSWORD` GitHub secret plus workflow inputs for host/user/db/port/ssl mode
+- Important Cloud Run limitation note:
+  - the current default SQLite database is only suitable for demos/ephemeral use on Cloud Run
+  - persistent production use will require a managed database instead of container-local SQLite
+- Practical architecture direction:
+  - client repos are expected to own their own modules/content/reports inside the shared portal shell
+  - Howell admin tooling owns cross-client runtime monitoring and outage visibility
+- Clarified repo structure for client-portal work:
+  - `Portal-Library/` is now the intended client-facing package source
+  - `packages/portal` should be treated as older package work that still exists in the monorepo but is no longer the preferred destination for the client-shell direction
+- Centralized the `Portal-Library` preview branding/content contract into `Portal-Library/src/portalDemoConfig.ts` so theming inputs live in one file.
 - Added backend Microsoft runtime-config endpoints:
   - `GET /api/auth/microsoft/config`
   - `POST /api/auth/microsoft/config`
@@ -395,6 +441,9 @@ A copied snapshot of the external Austin AI portal context lives at [docs/refere
     - `VITE_STATIC_FE_ONLY=true`
     - `VITE_POC_API_BASE_URL=`
   - when `false`, workflow writes `VITE_STATIC_FE_ONLY=false` for backend-integrated builds
+  - `api_base_url` (string, default empty)
+  - required when `static_fe_only=false`
+  - workflow writes `VITE_POC_API_BASE_URL=<api_base_url>` for GitHub Pages builds that should talk to the deployed API
 - Deployment target: GitHub Pages environment using Actions artifact upload/deploy.
 - Build target is only operator portal:
   - run from `Howell-Portal/Admin-Portal-UI`

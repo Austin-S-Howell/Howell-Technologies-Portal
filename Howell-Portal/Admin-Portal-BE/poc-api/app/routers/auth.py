@@ -9,11 +9,24 @@ from sqlmodel import Session, select
 from app.config import Settings, get_settings
 from app.database import get_session
 from app.models import UserSession
-from app.schemas import AuthSessionResponse, MicrosoftConfigRequest, MicrosoftConfigResponse
+from app.schemas import (
+    AuthSessionResponse,
+    MicrosoftConfigRequest,
+    MicrosoftConfigResponse,
+    OperatorLoginRequest,
+    OperatorSessionResponse,
+    SessionModel,
+)
 from app.services.ms_config import get_resolved_microsoft_config, set_runtime_microsoft_config
 from app.services.msal_client import build_msal_app
+from app.services.operator_auth_store import (
+    build_operator_display_name,
+    find_operator_user,
+    normalize_username,
+)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+INVALID_OPERATOR_CREDENTIALS_MESSAGE = "Login failed: Incorrect username/password combo."
 
 
 def build_msal_app_or_400(*, client_id: str, client_secret: str, tenant_id: str):
@@ -145,6 +158,55 @@ def update_microsoft_config(
 def logout(request: Request) -> dict[str, Any]:
     request.session.clear()
     return {"ok": True}
+
+
+@router.post("/operator/login", response_model=SessionModel)
+def operator_login(
+    body: OperatorLoginRequest,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> SessionModel:
+    try:
+        record = find_operator_user(session, body.username)
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
+    if not record or record["password"] != body.password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=INVALID_OPERATOR_CREDENTIALS_MESSAGE,
+        )
+
+    resolved_username = record["username"] or normalize_username(body.username)
+    session_model = SessionModel(
+        id=normalize_username(resolved_username),
+        name=build_operator_display_name(resolved_username),
+        email=resolved_username,
+        role="Operator",
+    )
+    request.session["operator_session"] = session_model.model_dump()
+    return session_model
+
+
+@router.post("/operator/logout")
+def operator_logout(request: Request) -> dict[str, Any]:
+    request.session.pop("operator_session", None)
+    return {"ok": True}
+
+
+@router.get("/operator/session", response_model=OperatorSessionResponse)
+def get_operator_session(request: Request) -> OperatorSessionResponse:
+    payload = request.session.get("operator_session")
+    if not payload:
+        return OperatorSessionResponse(isAuthenticated=False, session=None)
+
+    return OperatorSessionResponse(
+        isAuthenticated=True,
+        session=SessionModel(**payload),
+    )
 
 
 @router.get("/session", response_model=AuthSessionResponse)

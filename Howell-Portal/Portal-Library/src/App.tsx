@@ -1,93 +1,69 @@
-import { PortalApp, buildPortalFromConfig } from "@howell-technologies/portal";
-
-const portalBuild = buildPortalFromConfig({
-  companyName: "Riverbend Health",
-  audience: "Operations and executive stakeholders",
-  branding: {
-    companyName: "Riverbend Health",
-    tagLine: "Client-facing portal experience powered by Howell Technologies.",
-    theme: {
-      primary: "#304352",
-      surface: "#f3f6fa",
-      accent: "#d4dae3",
-      text: "#1f2934",
-      mutedText: "#5a6470",
-    },
-  },
-  features: { reports: true },
-  session: {
-    id: "client-demo-user",
-    name: "Morgan Lee",
-    email: "morgan@riverbendhealth.example.com",
-    role: "Operations Director",
-  },
-  content: {
-    headline: "Riverbend Care Hub",
-    subheadline: "A branded portal shell focused on homepage widgets and Power BI report workflows.",
-    statusMessage: "Core care operations are stable.",
-    reportGoal: "Enable leadership to track patient access and operational KPIs every morning.",
-    announcements: ["Monthly KPI review is now available in Reports.", "Support runbook updates were published this morning."],
-    widgets: [
-      { id: "widget-availability", title: "Availability", type: "metric", value: "99.98%", tone: "positive" },
-      { id: "widget-incidents", title: "Open incidents", type: "status", value: "2", tone: "warning" },
-      { id: "widget-users", title: "Daily active users", type: "metric", value: "1,247", tone: "neutral" },
-    ],
-  },
-  reports: [
-    {
-      reportId: "riverbend-ops-overview",
-      groupId: "riverbend-workspace",
-      name: "Operations Overview",
-      description: "Cross-team KPI and availability summary.",
-      embedUrl: "https://app.powerbi.com/reportEmbed?reportId=riverbend-ops-overview",
-      workspaceName: "Riverbend Analytics",
-      lastUpdated: "5 minutes ago",
-    },
-    {
-      reportId: "riverbend-patient-access",
-      groupId: "riverbend-workspace",
-      name: "Patient Access Performance",
-      description: "Referral cycle time and appointment throughput.",
-      embedUrl: "https://app.powerbi.com/reportEmbed?reportId=riverbend-patient-access",
-      workspaceName: "Riverbend Analytics",
-      lastUpdated: "22 minutes ago",
-    },
-  ],
-  multiViews: [
-    {
-      id: "riverbend-mv-exec",
-      name: "Executive daily view",
-      description: "Two-report layout for the daily brief.",
-      tiles: [
-        {
-          id: "tile-ops",
-          reportId: "riverbend-ops-overview",
-          groupId: "riverbend-workspace",
-          title: "Operations overview",
-          x: 0,
-          y: 0,
-          w: 6,
-          h: 4,
-        },
-        {
-          id: "tile-access",
-          reportId: "riverbend-patient-access",
-          groupId: "riverbend-workspace",
-          title: "Patient access",
-          x: 6,
-          y: 0,
-          w: 6,
-          h: 4,
-        },
-      ],
-    },
-  ],
-});
+import { PortalPanel, PortalShell, PortalStatusBadge } from "./index";
+import { portalDemoBranding, portalDemoNavigation, portalDemoSession } from "./portalDemoConfig";
 
 export default function App() {
   return (
     <main style={{ padding: 32, minHeight: "100vh", background: "#edf5fa" }}>
-      <PortalApp {...portalBuild} basePath="/portal" />
+      <PortalShell
+        branding={portalDemoBranding}
+        session={portalDemoSession}
+        navigation={portalDemoNavigation}
+        headline="Riverbend Care Hub"
+        subheadline="A reusable portal shell package for authenticated client experiences."
+        statusMessage="Runtime heartbeat reporting is package-driven and report rendering stays in the client app."
+        rightRail={
+          <PortalPanel eyebrow="Package intent" title="Client-owned content">
+            <div style={{ display: "grid", gap: 10, color: "#5a6470" }}>
+              <p style={{ margin: 0 }}>
+                This package provides the shell, theming, and runtime heartbeat. Riverbend owns the app content and any report
+                integrations.
+              </p>
+              <PortalStatusBadge state="live" label="Preview ready" />
+            </div>
+          </PortalPanel>
+        }
+      >
+        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "minmax(0, 1.4fr) minmax(280px, 1fr)" }}>
+          <PortalPanel eyebrow="Portal modules" title="Current authenticated view">
+            <div style={{ display: "grid", gap: 10 }}>
+              <div style={demoRowStyle()}>
+                <strong>Member directory</strong>
+                <span>Client-owned module</span>
+              </div>
+              <div style={demoRowStyle()}>
+                <strong>Operational alerts</strong>
+                <span>Client-owned module</span>
+              </div>
+              <div style={demoRowStyle()}>
+                <strong>Knowledge center</strong>
+                <span>Client-owned module</span>
+              </div>
+            </div>
+          </PortalPanel>
+
+          <PortalPanel eyebrow="Howell monitoring" title="Admin relay">
+            <div style={{ display: "grid", gap: 10, color: "#5a6470" }}>
+              <p style={{ margin: 0 }}>
+                The package can post heartbeats to Howell so the operator portal can see whether this client portal is still
+                responding.
+              </p>
+              <PortalStatusBadge state="degraded" label="Example degraded state" />
+            </div>
+          </PortalPanel>
+        </div>
+      </PortalShell>
     </main>
   );
+}
+
+function demoRowStyle() {
+  return {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 12,
+    padding: "12px 14px",
+    borderRadius: 12,
+    border: "1px solid #d4dae3",
+    background: "#edf3f6",
+  };
 }

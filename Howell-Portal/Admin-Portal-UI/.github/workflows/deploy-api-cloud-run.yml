@@ -1,0 +1,250 @@
+name: Deploy POC API to Cloud Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: Git ref to checkout before build
+        required: true
+        default: main
+        type: string
+      gcp_project_id:
+        description: GCP project ID
+        required: true
+        type: string
+      gcp_region:
+        description: Cloud Run region
+        required: true
+        default: us-central1
+        type: string
+      artifact_repository:
+        description: Artifact Registry repository name
+        required: true
+        default: howell
+        type: string
+      service_name:
+        description: API Cloud Run service name
+        required: true
+        default: howell-poc-api
+        type: string
+      ui_service_name:
+        description: UI Cloud Run service name
+        required: true
+        default: howell-operator-ui
+        type: string
+      build_image:
+        description: Build and push a new image before deploying
+        required: true
+        default: true
+        type: boolean
+      image_tag:
+        description: Image tag to build/deploy
+        required: true
+        default: latest
+        type: string
+      extra_cors_origins:
+        description: Optional comma-separated extra CORS origins
+        required: false
+        default: ""
+        type: string
+      use_ephemeral_sqlite:
+        description: Use container-local SQLite (demo only)
+        required: true
+        default: true
+        type: boolean
+      database_host:
+        description: Managed database host when not using ephemeral SQLite
+        required: false
+        default: db.jikujruqahhyqwnlqmbt.supabase.co
+        type: string
+      database_port:
+        description: Managed database port when not using ephemeral SQLite
+        required: false
+        default: "5432"
+        type: string
+      database_name:
+        description: Managed database name when not using ephemeral SQLite
+        required: false
+        default: postgres
+        type: string
+      database_user:
+        description: Managed database user when not using ephemeral SQLite
+        required: false
+        default: postgres
+        type: string
+      database_ssl_mode:
+        description: SSL mode for managed Postgres connections
+        required: false
+        default: require
+        type: string
+      operator_users_schema:
+        description: Database schema containing the operator users table
+        required: true
+        default: public
+        type: string
+      operator_users_table:
+        description: Database table containing username/password columns
+        required: true
+        default: operator_users
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_ref }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ inputs.gcp_region }}-docker.pkg.dev --quiet
+
+      - name: Resolve UI URL for API CORS
+        run: |
+          UI_URL=$(gcloud run services describe ${{ inputs.ui_service_name }} \
+            --region ${{ inputs.gcp_region }} \
+            --project ${{ inputs.gcp_project_id }} \
+            --format 'value(status.url)' 2>/dev/null || true)
+          PROJECT_NUMBER=$(gcloud projects describe ${{ inputs.gcp_project_id }} \
+            --format 'value(projectNumber)' 2>/dev/null || true)
+          UI_URL_ALT=""
+          if [ -n "${PROJECT_NUMBER}" ]; then
+            UI_URL_ALT="https://${{ inputs.ui_service_name }}-${PROJECT_NUMBER}.${{ inputs.gcp_region }}.run.app"
+          fi
+          if [ -z "${UI_URL}" ]; then
+            UI_URL="http://localhost:5173"
+            echo "WARNING: Could not resolve '${{ inputs.ui_service_name }}' URL. Falling back to ${UI_URL} for CORS."
+          fi
+          if [ -n "${UI_URL_ALT}" ] && [ "${UI_URL_ALT}" != "${UI_URL}" ]; then
+            CORS_ORIGINS="${UI_URL},${UI_URL_ALT}"
+          else
+            CORS_ORIGINS="${UI_URL}"
+          fi
+          if [ -n "${{ inputs.extra_cors_origins }}" ]; then
+            CORS_ORIGINS="${CORS_ORIGINS},${{ inputs.extra_cors_origins }}"
+          fi
+          CORS_ORIGINS="$(
+            echo "${CORS_ORIGINS}" \
+              | tr ',' '\n' \
+              | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
+              | awk 'NF && !seen[$0]++' \
+              | paste -sd, -
+          )"
+          echo "UI_URL=${UI_URL}" >> "$GITHUB_ENV"
+          echo "CORS_ORIGINS=${CORS_ORIGINS}" >> "$GITHUB_ENV"
+          echo "Using POC_API_ALLOWED_ORIGINS=${CORS_ORIGINS}"
+
+      - name: Build and push image
+        if: ${{ inputs.build_image }}
+        run: |
+          IMAGE="${{ inputs.gcp_region }}-docker.pkg.dev/${{ inputs.gcp_project_id }}/${{ inputs.artifact_repository }}/${{ inputs.service_name }}"
+          docker build \
+            -t "${IMAGE}:${{ inputs.image_tag }}" \
+            Howell-Portal/Admin-Portal-BE/poc-api
+          docker push "${IMAGE}:${{ inputs.image_tag }}"
+          echo "IMAGE=${IMAGE}" >> "$GITHUB_ENV"
+
+      - name: Prepare runtime env vars
+        run: |
+          set -euo pipefail
+          if [ -z "${{ secrets.POC_API_SESSION_SECRET }}" ]; then
+            echo "POC_API_SESSION_SECRET GitHub secret is required."
+            exit 1
+          fi
+          DATABASE_URL_VALUE=""
+          if [ "${{ inputs.use_ephemeral_sqlite }}" = "true" ]; then
+            DATABASE_URL_VALUE="sqlite:///./poc_api.db"
+          else
+            if [ -n "${{ secrets.POC_API_DATABASE_URL }}" ]; then
+              DATABASE_URL_VALUE="${{ secrets.POC_API_DATABASE_URL }}"
+            elif [ -z "${{ secrets.POC_API_DB_PASSWORD }}" ]; then
+              echo "Either POC_API_DATABASE_URL or POC_API_DB_PASSWORD GitHub secret is required when ephemeral SQLite is disabled."
+              exit 1
+            else
+              ENCODED_PASSWORD="$(
+                python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["DB_PASSWORD"], safe=""))'
+              )"
+              DATABASE_URL_VALUE="postgresql://${{ inputs.database_user }}:${ENCODED_PASSWORD}@${{ inputs.database_host }}:${{ inputs.database_port }}/${{ inputs.database_name }}?sslmode=${{ inputs.database_ssl_mode }}"
+            fi
+          fi
+
+          {
+            echo "POC_API_ALLOWED_ORIGINS=${CORS_ORIGINS}"
+            echo "POC_API_FRONTEND_REDIRECT_URL=${UI_URL}/demo-workbench"
+            echo "POC_API_SESSION_SAME_SITE=none"
+            echo "POC_API_SESSION_HTTPS_ONLY=true"
+            echo "POC_API_DATABASE_URL=${DATABASE_URL_VALUE}"
+            echo "POC_API_OPERATOR_USERS_SCHEMA=${{ inputs.operator_users_schema }}"
+            echo "POC_API_OPERATOR_USERS_TABLE=${{ inputs.operator_users_table }}"
+            echo "POC_API_SESSION_SECRET=${{ secrets.POC_API_SESSION_SECRET }}"
+            echo "POC_API_PORTAL_RUNTIME_INGEST_KEY=${{ secrets.POC_API_PORTAL_RUNTIME_INGEST_KEY }}"
+            echo "POC_API_MS_CLIENT_ID=${{ secrets.POC_API_MS_CLIENT_ID }}"
+            echo "POC_API_MS_CLIENT_SECRET=${{ secrets.POC_API_MS_CLIENT_SECRET }}"
+            echo "POC_API_MS_TENANT_ID=${{ secrets.POC_API_MS_TENANT_ID }}"
+          } > cloudrun.env
+        env:
+          DB_PASSWORD: ${{ secrets.POC_API_DB_PASSWORD }}
+
+      - name: Deploy to Cloud Run
+        run: |
+          IMAGE="${IMAGE:-${{ inputs.gcp_region }}-docker.pkg.dev/${{ inputs.gcp_project_id }}/${{ inputs.artifact_repository }}/${{ inputs.service_name }}}"
+          gcloud run deploy "${{ inputs.service_name }}" \
+            --image "${IMAGE}:${{ inputs.image_tag }}" \
+            --region "${{ inputs.gcp_region }}" \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8000 \
+            --min-instances 0 \
+            --max-instances 10 \
+            --env-vars-file cloudrun.env \
+            --project "${{ inputs.gcp_project_id }}"
+
+      - name: Smoke test API health + CORS
+        run: |
+          set -euo pipefail
+          API_URL=$(gcloud run services describe "${{ inputs.service_name }}" \
+            --region "${{ inputs.gcp_region }}" \
+            --project "${{ inputs.gcp_project_id }}" \
+            --format 'value(status.url)')
+          API_HEALTH_BODY=$(curl -sS "${API_URL}/health")
+          if ! echo "${API_HEALTH_BODY}" | grep -q '"status"[[:space:]]*:[[:space:]]*"ok"'; then
+            echo "ERROR: API health response did not include status=ok."
+            echo "Response: ${API_HEALTH_BODY}"
+            exit 1
+          fi
+          IFS=',' read -r -a ORIGINS <<< "${CORS_ORIGINS}"
+          for origin in "${ORIGINS[@]}"; do
+            origin="$(echo "${origin}" | xargs)"
+            [ -z "${origin}" ] && continue
+            PREFLIGHT_HEADERS=$(
+              curl -sS -D - -o /dev/null -X OPTIONS "${API_URL}/api/auth/session" \
+                -H "Origin: ${origin}" \
+                -H "Access-Control-Request-Method: GET" | tr -d '\r'
+            )
+            if ! echo "${PREFLIGHT_HEADERS}" | grep -iq "^access-control-allow-origin: ${origin}$"; then
+              echo "ERROR: CORS allow-origin header missing or mismatched for ${origin}."
+              echo "${PREFLIGHT_HEADERS}"
+              exit 1
+            fi
+          done
+
+      - name: Show service URL
+        run: |
+          URL=$(gcloud run services describe "${{ inputs.service_name }}" \
+            --region "${{ inputs.gcp_region }}" \
+            --project "${{ inputs.gcp_project_id }}" \
+            --format 'value(status.url)')
+          echo "API deployed to: $URL"
+          echo "CORS origins: ${CORS_ORIGINS}"

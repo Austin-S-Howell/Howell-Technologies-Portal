@@ -2,9 +2,6 @@
   "extends": "../Admin-Portal-UI/tsconfig.base.json",
   "compilerOptions": {
     "baseUrl": ".",
-    "paths": {
-      "@howell-technologies/portal": ["../Admin-Portal-UI/packages/portal/src/index.ts"]
-    },
     "types": ["vitest/globals", "@testing-library/jest-dom"]
   },
   "include": ["src", "vite.config.ts"]

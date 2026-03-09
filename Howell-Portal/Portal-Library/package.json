@@ -1,17 +1,35 @@
 {
-  "name": "@howell-technologies/client-portal-demo",
+  "name": "@howell-technologies/portal-library",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
+  "description": "Reusable client portal shell package with optional Howell runtime heartbeat reporting.",
   "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "vite --port 5174",
-    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "build": "rm -rf dist dist-demo && npm run build:lib && npm run build:demo",
+    "build:lib": "tsc -p tsconfig.lib.json",
+    "build:demo": "tsc --noEmit -p tsconfig.json && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "lint": "tsc --noEmit -p tsconfig.json"
+    "lint": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.lib.json"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "dependencies": {
-    "@howell-technologies/portal": "file:../Admin-Portal-UI/packages/portal",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

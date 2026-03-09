@@ -1,3 +1,6 @@
+from app.routers.auth import INVALID_OPERATOR_CREDENTIALS_MESSAGE
+
+
 def test_auth_session_defaults_to_unauthenticated(client):
     response = client.get("/api/auth/session")
     assert response.status_code == 200
@@ -60,3 +63,47 @@ def test_microsoft_config_can_be_set_and_fetched(client):
     assert fetched_payload["clientId"] == "configured-client"
     assert fetched_payload["tenantId"] == "configured-tenant"
     assert fetched_payload["hasClientSecret"] is True
+
+
+def test_operator_login_succeeds_with_matching_database_credentials(client, monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.auth.find_operator_user",
+        lambda session, username: {"username": username, "password": "secret-pass"},
+    )
+
+    response = client.post(
+        "/api/auth/operator/login",
+        json={"username": "operator@example.com", "password": "secret-pass"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["email"] == "operator@example.com"
+    assert payload["role"] == "Operator"
+
+    session_response = client.get("/api/auth/operator/session")
+    assert session_response.status_code == 200
+    session_payload = session_response.json()
+    assert session_payload["isAuthenticated"] is True
+    assert session_payload["session"]["email"] == "operator@example.com"
+
+
+def test_operator_login_rejects_bad_username_password_combo(client, monkeypatch):
+    monkeypatch.setattr("app.routers.auth.find_operator_user", lambda session, username: None)
+
+    missing_user_response = client.post(
+        "/api/auth/operator/login",
+        json={"username": "missing@example.com", "password": "whatever"},
+    )
+    assert missing_user_response.status_code == 401
+    assert missing_user_response.json()["detail"] == INVALID_OPERATOR_CREDENTIALS_MESSAGE
+
+    monkeypatch.setattr(
+        "app.routers.auth.find_operator_user",
+        lambda session, username: {"username": username, "password": "correct-pass"},
+    )
+    wrong_password_response = client.post(
+        "/api/auth/operator/login",
+        json={"username": "operator@example.com", "password": "wrong-pass"},
+    )
+    assert wrong_password_response.status_code == 401
+    assert wrong_password_response.json()["detail"] == INVALID_OPERATOR_CREDENTIALS_MESSAGE

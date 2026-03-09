@@ -18,9 +18,15 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./poc_api.db"
     session_secret: str = "replace-this-in-production"
+    session_same_site: str = "lax"
+    session_https_only: bool = False
     allowed_origins: str = "http://localhost:5173"
     frontend_redirect_url: str = "http://localhost:5173/demo-workbench"
     allow_dev_header_auth: bool = True
+    portal_runtime_ingest_key: str | None = None
+    portal_runtime_stale_after_seconds: int = 180
+    operator_users_schema: str = "public"
+    operator_users_table: str = "operator_users"
 
     ms_client_id: str | None = None
     ms_client_secret: str | None = None

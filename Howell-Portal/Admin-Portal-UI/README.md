@@ -67,3 +67,29 @@ npm run docker:stack
 
 - Pull requests run install, build, and test checks.
 - Release tags publish `@howell-technologies/portal` to GitHub Packages and build a container image for the admin portal.
+
+## Cloud Run Split Deploy
+
+This repo now supports a HOG-style split deployment where UI and API run as separate Cloud Run services:
+
+- API workflow: `.github/workflows/deploy-api-cloud-run.yml`
+- UI workflow: `.github/workflows/deploy-ui-cloud-run.yml`
+
+Recommended order:
+
+1. Deploy API first
+2. Deploy UI second
+
+The API workflow attempts to resolve the UI Cloud Run URL and automatically use it for:
+
+- `POC_API_ALLOWED_ORIGINS`
+- `POC_API_FRONTEND_REDIRECT_URL`
+
+The UI workflow attempts to resolve the API Cloud Run URL and bake it into the frontend build as:
+
+- `VITE_POC_API_BASE_URL`
+
+Important:
+
+- The backend default SQLite database is only suitable for demos on Cloud Run.
+- For persistent production use, provide `POC_API_DATABASE_URL` as a GitHub secret and deploy with ephemeral SQLite disabled.

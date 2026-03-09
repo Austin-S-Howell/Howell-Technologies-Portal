@@ -66,7 +66,7 @@ export function ClientDetailPage() {
         <article className="dashboard-metric">
           <span className="dashboard-metric__label">Package alignment</span>
           <strong>{client.buildVersion}</strong>
-          <p>Shared `PortalApp` package target for this client deployment.</p>
+          <p>Shared `Portal-Library` shell target for this client deployment.</p>
         </article>
       </section>
 
@@ -93,7 +93,7 @@ export function ClientDetailPage() {
           <p className="eyebrow">Package alignment</p>
           <h2>{client.buildVersion}</h2>
           <p className="lead">
-            This client is expected to consume the shared `PortalApp` package through host-configured branding and adapters.
+            This client is expected to consume the shared `Portal-Library` shell package and provide its own application content.
           </p>
           <a href={client.portalUrl} target="_blank" rel="noreferrer" className="button-link">
             Open live portal

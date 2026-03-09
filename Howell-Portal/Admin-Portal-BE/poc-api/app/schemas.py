@@ -92,6 +92,16 @@ class AuthSessionResponse(BaseModel):
     scopes: list[str] = Field(default_factory=list)
 
 
+class OperatorLoginRequest(BaseModel):
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=1)
+
+
+class OperatorSessionResponse(BaseModel):
+    isAuthenticated: bool
+    session: SessionModel | None = None
+
+
 class MicrosoftConfigRequest(BaseModel):
     clientId: str = Field(min_length=1)
     clientSecret: str = Field(min_length=1)
@@ -150,3 +160,44 @@ class MultiViewRecord(BaseModel):
     name: str
     updatedAt: datetime
     multiView: MultiViewModel
+
+
+class PortalRuntimeHeartbeatRequest(BaseModel):
+    clientId: str = Field(min_length=1)
+    clientName: str | None = None
+    applicationId: str = Field(min_length=1)
+    applicationName: str | None = None
+    portalName: str = Field(min_length=1)
+    portalUrl: str | None = None
+    environment: str | None = None
+    status: Literal["live", "degraded", "down"] = "live"
+    message: str | None = None
+    responseTimeMs: int | None = Field(default=None, ge=0)
+    currentPath: str | None = None
+    buildVersion: str | None = None
+    checkedAt: datetime | None = None
+
+
+class PortalRuntimeHeartbeatResponse(BaseModel):
+    ok: bool
+    recordId: str
+    receivedAt: datetime
+
+
+class PortalRuntimeStatusRecord(BaseModel):
+    recordId: str
+    clientId: str
+    clientName: str | None = None
+    applicationId: str
+    applicationName: str | None = None
+    portalName: str
+    portalUrl: str | None = None
+    environment: str | None = None
+    reportedStatus: Literal["live", "degraded", "down"]
+    effectiveStatus: Literal["live", "degraded", "down"]
+    message: str | None = None
+    responseTimeMs: int | None = None
+    currentPath: str | None = None
+    buildVersion: str | None = None
+    lastPingAt: datetime
+    isStale: bool

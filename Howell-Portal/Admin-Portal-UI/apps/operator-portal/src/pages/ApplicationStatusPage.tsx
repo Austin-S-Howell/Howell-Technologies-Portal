@@ -43,7 +43,7 @@ export function ApplicationStatusPage() {
         <div className="workspace-hero__aside">
           <span>Current posture</span>
           <strong>{down > 0 ? "Active outage" : degraded > 0 ? "Performance watch" : "Stable"}</strong>
-          <p>Status is calculated from the current mock service layer.</p>
+          <p>Status is calculated from live portal heartbeats when available, with mock records as fallback.</p>
         </div>
       </section>
 

@@ -85,7 +85,7 @@ export function ClientsPage() {
               </div>
               <div className="dashboard-brief-item">
                 <span>Package baseline</span>
-                <strong>`portal@0.1.0` is the current shared package target.</strong>
+                <strong>`Portal-Library` is the current shared shell package target.</strong>
               </div>
             </div>
           </article>

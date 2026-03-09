@@ -22,8 +22,12 @@ export function LoginPage() {
       await login(email, password);
       navigate(from, { replace: true });
     } catch (caughtError) {
-      if (caughtError instanceof Error && caughtError.message === "Invalid mock credentials.") {
-        setError("Incorrect email/password combination");
+      if (
+        caughtError instanceof Error &&
+        (caughtError.message === "Invalid mock credentials." ||
+          caughtError.message === "Login failed: Incorrect username/password combo.")
+      ) {
+        setError("Login failed: Incorrect username/password combo.");
       } else {
         setError("Unable to log in.");
       }
@@ -51,12 +55,12 @@ export function LoginPage() {
 
         <div className="login-form">
           <label className="login-field">
-            Email
+            Username
             <input
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              type="email"
-              autoComplete="email"
+              type="text"
+              autoComplete="username"
               required
             />
           </label>

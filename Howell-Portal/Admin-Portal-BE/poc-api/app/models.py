@@ -37,3 +37,22 @@ class POCMultiView(SQLModel, table=True):
     multi_view_json: str
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
+
+
+class PortalRuntimeStatus(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    client_id: str = Field(index=True)
+    client_name: str | None = None
+    application_id: str = Field(index=True)
+    application_name: str | None = None
+    portal_name: str
+    portal_url: str | None = None
+    environment: str | None = None
+    status: str = "live"
+    message: str | None = None
+    response_time_ms: int | None = None
+    current_path: str | None = None
+    build_version: str | None = None
+    last_ping_at: datetime = Field(default_factory=utc_now, index=True)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)

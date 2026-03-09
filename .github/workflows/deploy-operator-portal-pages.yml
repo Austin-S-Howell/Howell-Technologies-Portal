@@ -13,6 +13,11 @@ on:
         required: false
         default: true
         type: boolean
+      api_base_url:
+        description: "API base URL when backend integration is enabled"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -47,6 +52,7 @@ jobs:
 
       - name: Configure frontend build mode
         run: |
+          set -euo pipefail
           if [ "${{ inputs.use_custom_domain }}" = "true" ]; then
             BASE_PATH="/"
           else
@@ -57,7 +63,11 @@ jobs:
             printf "VITE_PUBLIC_BASE=%s\nVITE_STATIC_FE_ONLY=true\nVITE_POC_API_BASE_URL=\n" "$BASE_PATH" > apps/operator-portal/.env.production.local
             echo "Configured static frontend-only deployment build."
           else
-            printf "VITE_PUBLIC_BASE=%s\nVITE_STATIC_FE_ONLY=false\n" "$BASE_PATH" > apps/operator-portal/.env.production.local
+            if [ -z "${{ inputs.api_base_url }}" ]; then
+              echo "api_base_url is required when static_fe_only is false."
+              exit 1
+            fi
+            printf "VITE_PUBLIC_BASE=%s\nVITE_STATIC_FE_ONLY=false\nVITE_POC_API_BASE_URL=%s\n" "$BASE_PATH" "${{ inputs.api_base_url }}" > apps/operator-portal/.env.production.local
             echo "Configured frontend build with backend integration enabled."
           fi
         working-directory: Howell-Portal/Admin-Portal-UI
