@@ -375,3 +375,15 @@ A copied snapshot of the external Austin AI portal context lives at [docs/refere
   - When static-only is enabled, backend API helper calls fail fast with clear error text instead of attempting network requests.
 - Workflow stability fix:
   - replaced heredoc env-file write in deploy workflow with `printf` writes to avoid GitHub runner heredoc parsing failures (`unexpected end of file`).
+- GitHub Pages subpath fix:
+  - deploy workflow now sets `VITE_PUBLIC_BASE` dynamically:
+    - custom domain on: `/`
+    - custom domain off: `/${{ github.event.repository.name }}/`
+  - operator portal Vite config now reads `VITE_PUBLIC_BASE` via `loadEnv` and applies it to `base`.
+  - operator portal router now uses `BrowserRouter` basename from `import.meta.env.BASE_URL`.
+  - `index.html` icon/manifest links use `%BASE_URL%...` so assets resolve in both root and repo-subpath deployments.
+  - `site.webmanifest` now uses relative paths and `start_url: "."` for subpath compatibility.
+  - deploy workflow now copies `dist/index.html` to `dist/404.html` for SPA route refresh support on GitHub Pages.
+  - deploy workflow removes `dist/CNAME` when `use_custom_domain=false` to prevent forced redirect to an unset custom domain.
+- Documentation refresh:
+  - added repo-root `README.md` with Howell logo, accurate platform overview, current folder structure, local dev commands, and GitHub Pages deployment guidance.

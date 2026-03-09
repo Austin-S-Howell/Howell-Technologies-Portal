@@ -9,9 +9,17 @@ import { DemoWorkbenchPage } from "./pages/DemoWorkbenchPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 
+function resolveRouterBasename() {
+  const base = import.meta.env.BASE_URL;
+  if (!base || base === "/") {
+    return undefined;
+  }
+  return base;
+}
+
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={resolveRouterBasename()}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route element={<ProtectedRoute />}>

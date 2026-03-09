@@ -5,5 +5,19 @@
     "name": "Austin Howell",
     "role": "Administrator",
     "password": "admin"
+  },
+  {
+    "id": "user-brian",
+    "email": "brian@howelltechnologies.com",
+    "name": "Brian Howell",
+    "role": "Administrator",
+    "password": "admin"
+  },
+  {
+    "id": "user-sarah",
+    "email": "sarah@howelltechnologies.com",
+    "name": "Sarah Howell",
+    "role": "Administrator",
+    "password": "admin"
   }
 ]

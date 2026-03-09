@@ -47,17 +47,32 @@ jobs:
 
       - name: Configure frontend build mode
         run: |
+          if [ "${{ inputs.use_custom_domain }}" = "true" ]; then
+            BASE_PATH="/"
+          else
+            BASE_PATH="/${{ github.event.repository.name }}/"
+          fi
+
           if [ "${{ inputs.static_fe_only }}" = "true" ]; then
-            printf "VITE_STATIC_FE_ONLY=true\nVITE_POC_API_BASE_URL=\n" > apps/operator-portal/.env.production.local
+            printf "VITE_PUBLIC_BASE=%s\nVITE_STATIC_FE_ONLY=true\nVITE_POC_API_BASE_URL=\n" "$BASE_PATH" > apps/operator-portal/.env.production.local
             echo "Configured static frontend-only deployment build."
           else
-            printf "VITE_STATIC_FE_ONLY=false\n" > apps/operator-portal/.env.production.local
+            printf "VITE_PUBLIC_BASE=%s\nVITE_STATIC_FE_ONLY=false\n" "$BASE_PATH" > apps/operator-portal/.env.production.local
             echo "Configured frontend build with backend integration enabled."
           fi
         working-directory: Howell-Portal/Admin-Portal-UI
 
       - name: Build operator portal
         run: npm run build --workspace @howell-technologies/operator-portal
+        working-directory: Howell-Portal/Admin-Portal-UI
+
+      - name: Add SPA fallback
+        run: cp apps/operator-portal/dist/index.html apps/operator-portal/dist/404.html
+        working-directory: Howell-Portal/Admin-Portal-UI
+
+      - name: Remove custom domain file
+        if: ${{ !inputs.use_custom_domain }}
+        run: rm -f apps/operator-portal/dist/CNAME
         working-directory: Howell-Portal/Admin-Portal-UI
 
       - name: Ensure custom domain file
