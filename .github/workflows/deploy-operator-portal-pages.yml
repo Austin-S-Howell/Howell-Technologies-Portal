@@ -8,6 +8,11 @@ on:
         required: false
         default: false
         type: boolean
+      static_fe_only:
+        description: "Build static frontend only (no backend integration)"
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -38,6 +43,22 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        working-directory: Howell-Portal/Admin-Portal-UI
+
+      - name: Configure frontend build mode
+        run: |
+          if [ "${{ inputs.static_fe_only }}" = "true" ]; then
+            cat > apps/operator-portal/.env.production.local <<'EOF'
+            VITE_STATIC_FE_ONLY=true
+            VITE_POC_API_BASE_URL=
+            EOF
+            echo "Configured static frontend-only deployment build."
+          else
+            cat > apps/operator-portal/.env.production.local <<'EOF'
+            VITE_STATIC_FE_ONLY=false
+            EOF
+            echo "Configured frontend build with backend integration enabled."
+          fi
         working-directory: Howell-Portal/Admin-Portal-UI
 
       - name: Build operator portal

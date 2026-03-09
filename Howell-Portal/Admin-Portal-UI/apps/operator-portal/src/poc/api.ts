@@ -8,6 +8,7 @@ import type {
   SavedPOCConfigRecord,
 } from "./types";
 
+const isStaticFrontendOnly = (import.meta.env.VITE_STATIC_FE_ONLY as string | undefined) === "true";
 const baseUrl = (import.meta.env.VITE_POC_API_BASE_URL as string | undefined)?.replace(/\/+$/, "") ?? "http://localhost:8000";
 
 async function parseResponse<T>(response: Response): Promise<T> {
@@ -18,11 +19,21 @@ async function parseResponse<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
 
+function assertBackendEnabled() {
+  if (!isStaticFrontendOnly) {
+    return;
+  }
+
+  throw new Error("Backend API integration is disabled for this static frontend deployment.");
+}
+
 export function getMicrosoftLoginUrl() {
+  assertBackendEnabled();
   return `${baseUrl}/api/auth/microsoft/login`;
 }
 
 export async function fetchMicrosoftConfig(): Promise<MicrosoftRuntimeConfig> {
+  assertBackendEnabled();
   const response = await fetch(`${baseUrl}/api/auth/microsoft/config`, {
     method: "GET",
     credentials: "include",
@@ -31,6 +42,7 @@ export async function fetchMicrosoftConfig(): Promise<MicrosoftRuntimeConfig> {
 }
 
 export async function updateMicrosoftConfig(payload: MicrosoftRuntimeConfigInput): Promise<MicrosoftRuntimeConfig> {
+  assertBackendEnabled();
   const response = await fetch(`${baseUrl}/api/auth/microsoft/config`, {
     method: "POST",
     credentials: "include",
@@ -43,6 +55,7 @@ export async function updateMicrosoftConfig(payload: MicrosoftRuntimeConfigInput
 }
 
 export async function fetchPOCAuthSession(): Promise<POCAuthSession> {
+  assertBackendEnabled();
   const response = await fetch(`${baseUrl}/api/auth/session`, {
     method: "GET",
     credentials: "include",
@@ -51,6 +64,7 @@ export async function fetchPOCAuthSession(): Promise<POCAuthSession> {
 }
 
 export async function fetchAvailableReports(): Promise<AvailableReportsResponse> {
+  assertBackendEnabled();
   const response = await fetch(`${baseUrl}/api/reports/available`, {
     method: "GET",
     credentials: "include",
@@ -59,6 +73,7 @@ export async function fetchAvailableReports(): Promise<AvailableReportsResponse>
 }
 
 export async function fetchSavedConfigs(): Promise<SavedPOCConfigRecord[]> {
+  assertBackendEnabled();
   const response = await fetch(`${baseUrl}/api/poc/configs`, {
     method: "GET",
     credentials: "include",
@@ -67,6 +82,7 @@ export async function fetchSavedConfigs(): Promise<SavedPOCConfigRecord[]> {
 }
 
 export async function createPOCConfig(name: string, config: CompanyPOCConfig): Promise<SavedPOCConfigRecord> {
+  assertBackendEnabled();
   const response = await fetch(`${baseUrl}/api/poc/configs`, {
     method: "POST",
     credentials: "include",
@@ -79,6 +95,7 @@ export async function createPOCConfig(name: string, config: CompanyPOCConfig): P
 }
 
 export async function updatePOCConfig(configId: string, name: string, config: CompanyPOCConfig): Promise<SavedPOCConfigRecord> {
+  assertBackendEnabled();
   const response = await fetch(`${baseUrl}/api/poc/configs/${configId}`, {
     method: "PUT",
     credentials: "include",
@@ -91,6 +108,7 @@ export async function updatePOCConfig(configId: string, name: string, config: Co
 }
 
 export async function deletePOCConfig(configId: string): Promise<void> {
+  assertBackendEnabled();
   const response = await fetch(`${baseUrl}/api/poc/configs/${configId}`, {
     method: "DELETE",
     credentials: "include",
@@ -101,6 +119,7 @@ export async function deletePOCConfig(configId: string): Promise<void> {
 }
 
 export async function fetchSavedMultiViews(): Promise<SavedMultiViewRecord[]> {
+  assertBackendEnabled();
   const response = await fetch(`${baseUrl}/api/poc/multiviews`, {
     method: "GET",
     credentials: "include",
@@ -109,6 +128,7 @@ export async function fetchSavedMultiViews(): Promise<SavedMultiViewRecord[]> {
 }
 
 export async function createMultiView(name: string, multiView: MultiViewConfig): Promise<SavedMultiViewRecord> {
+  assertBackendEnabled();
   const response = await fetch(`${baseUrl}/api/poc/multiviews`, {
     method: "POST",
     credentials: "include",

@@ -356,6 +356,11 @@ A copied snapshot of the external Austin AI portal context lives at [docs/refere
   - `use_custom_domain` (boolean, default `false`)
   - when `true`, deploy includes `CNAME` for `portal.howelltechnologies.com`
   - when `false`, deploy omits `CNAME` so default GitHub Pages URL works before DNS is ready
+  - `static_fe_only` (boolean, default `true`)
+  - when `true`, workflow writes `apps/operator-portal/.env.production.local` with:
+    - `VITE_STATIC_FE_ONLY=true`
+    - `VITE_POC_API_BASE_URL=`
+  - when `false`, workflow writes `VITE_STATIC_FE_ONLY=false` for backend-integrated builds
 - Deployment target: GitHub Pages environment using Actions artifact upload/deploy.
 - Build target is only operator portal:
   - run from `Howell-Portal/Admin-Portal-UI`
@@ -365,3 +370,6 @@ A copied snapshot of the external Austin AI portal context lives at [docs/refere
 - Custom domain support:
   - added `apps/operator-portal/public/CNAME` with `portal.howelltechnologies.com`
   - workflow includes a guard step to ensure `dist/CNAME` exists before upload.
+- Frontend backend-guard behavior:
+  - `apps/operator-portal/src/poc/api.ts` now checks `VITE_STATIC_FE_ONLY`.
+  - When static-only is enabled, backend API helper calls fail fast with clear error text instead of attempting network requests.
