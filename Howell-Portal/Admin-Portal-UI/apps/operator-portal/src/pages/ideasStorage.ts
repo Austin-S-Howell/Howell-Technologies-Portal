@@ -27,6 +27,8 @@ export type IdeasBoardState = {
 
 export const MIN_NOTE_WIDTH = 236;
 export const MIN_NOTE_HEIGHT = 184;
+export const MIN_PATH_WIDTH = 2;
+export const MAX_PATH_WIDTH = 80;
 export const IDEAS_STORAGE_KEY = "ht.operatorPortal.ideasWhiteboard.v1";
 export const EMPTY_IDEAS_BOARD_STATE: IdeasBoardState = {
   notes: [],
@@ -105,7 +107,7 @@ function sanitizePath(value: unknown): DrawingPath | null {
   return {
     points,
     color: value.color,
-    width: clampNumber(value.width, 2, 32),
+    width: clampNumber(value.width, MIN_PATH_WIDTH, MAX_PATH_WIDTH),
     tool: value.tool === "erase" ? "erase" : "draw",
   };
 }

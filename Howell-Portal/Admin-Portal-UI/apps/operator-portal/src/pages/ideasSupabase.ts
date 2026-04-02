@@ -106,6 +106,7 @@ export async function saveIdeasBoardToSupabase(
 type SharedIdeasSubscriptionHandlers = {
   onState: (state: IdeasBoardState) => void;
   onSubscribed?: () => void;
+  onWarning?: (message: string) => void;
   onError?: (message: string) => void;
 };
 
@@ -143,6 +144,11 @@ export function subscribeToSharedIdeasBoard(handlers: SharedIdeasSubscriptionHan
 
       if (status === "CHANNEL_ERROR") {
         handlers.onError?.("Supabase live updates failed to connect for the shared board.");
+        return;
+      }
+
+      if (status === "TIMED_OUT" || status === "CLOSED") {
+        handlers.onWarning?.("Supabase live updates disconnected from the shared board.");
       }
     });
 
