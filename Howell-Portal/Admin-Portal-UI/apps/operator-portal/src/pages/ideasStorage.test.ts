@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   EMPTY_IDEAS_BOARD_STATE,
+  getIdeasStorageKey,
   IDEAS_STORAGE_KEY,
   loadIdeasBoardState,
   MIN_NOTE_HEIGHT,
@@ -49,5 +50,13 @@ describe("ideasStorage", () => {
     window.localStorage.setItem(IDEAS_STORAGE_KEY, "{not-json");
 
     expect(loadIdeasBoardState()).toEqual(EMPTY_IDEAS_BOARD_STATE);
+  });
+
+  it("supports separate storage keys for shared and private boards", () => {
+    saveIdeasBoardState(EMPTY_IDEAS_BOARD_STATE, "shared");
+    window.localStorage.setItem(getIdeasStorageKey("private:austin@howelltechnologies.com"), "{not-json");
+
+    expect(loadIdeasBoardState("shared")).toEqual(EMPTY_IDEAS_BOARD_STATE);
+    expect(loadIdeasBoardState("private:austin@howelltechnologies.com")).toEqual(EMPTY_IDEAS_BOARD_STATE);
   });
 });

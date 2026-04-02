@@ -1,3 +1,5 @@
+from app.config import get_settings
+from app.main import app
 from app.routers.auth import INVALID_OPERATOR_CREDENTIALS_MESSAGE
 
 
@@ -63,6 +65,29 @@ def test_microsoft_config_can_be_set_and_fetched(client):
     assert fetched_payload["clientId"] == "configured-client"
     assert fetched_payload["tenantId"] == "configured-tenant"
     assert fetched_payload["hasClientSecret"] is True
+
+
+def test_microsoft_config_update_can_be_disabled(client):
+    settings = get_settings()
+    original = settings.allow_runtime_microsoft_config
+    settings.allow_runtime_microsoft_config = False
+    app.dependency_overrides[get_settings] = lambda: settings
+
+    try:
+        response = client.post(
+            "/api/auth/microsoft/config",
+            json={
+                "clientId": "configured-client",
+                "clientSecret": "configured-secret",
+                "tenantId": "configured-tenant",
+            },
+        )
+    finally:
+        settings.allow_runtime_microsoft_config = original
+        app.dependency_overrides.pop(get_settings, None)
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Runtime Microsoft config updates are disabled."
 
 
 def test_operator_login_succeeds_with_matching_database_credentials(client, monkeypatch):

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@howell-technologies/portal": "*",
+    "@supabase/supabase-js": "^2.101.1",
     "primeicons": "^7.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

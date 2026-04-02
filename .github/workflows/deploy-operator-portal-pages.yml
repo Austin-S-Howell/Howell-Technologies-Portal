@@ -9,9 +9,9 @@ on:
         default: false
         type: boolean
       static_fe_only:
-        description: "Build static frontend only (no backend integration)"
+        description: "Build static frontend only (Pages still requires an explicit auth target)"
         required: false
-        default: true
+        default: false
         type: boolean
       api_base_url:
         description: "API base URL when backend integration is enabled"
@@ -60,16 +60,17 @@ jobs:
           fi
 
           if [ "${{ inputs.static_fe_only }}" = "true" ]; then
-            printf "VITE_PUBLIC_BASE=%s\nVITE_STATIC_FE_ONLY=true\nVITE_POC_API_BASE_URL=\n" "$BASE_PATH" > apps/operator-portal/.env.production.local
-            echo "Configured static frontend-only deployment build."
-          else
-            if [ -z "${{ inputs.api_base_url }}" ]; then
-              echo "api_base_url is required when static_fe_only is false."
-              exit 1
-            fi
-            printf "VITE_PUBLIC_BASE=%s\nVITE_STATIC_FE_ONLY=false\nVITE_POC_API_BASE_URL=%s\n" "$BASE_PATH" "${{ inputs.api_base_url }}" > apps/operator-portal/.env.production.local
-            echo "Configured frontend build with backend integration enabled."
+            echo "GitHub Pages deployment still blocks static_fe_only because the portal needs an explicit auth target."
+            exit 1
           fi
+
+          if [ -z "${{ inputs.api_base_url }}" ]; then
+            echo "api_base_url is required for GitHub Pages deployment."
+            exit 1
+          fi
+
+          printf "VITE_PUBLIC_BASE=%s\nVITE_STATIC_FE_ONLY=false\nVITE_POC_API_BASE_URL=%s\n" "$BASE_PATH" "${{ inputs.api_base_url }}" > apps/operator-portal/.env.production.local
+          echo "Configured frontend build with backend integration enabled."
         working-directory: Howell-Portal/Admin-Portal-UI
 
       - name: Build operator portal

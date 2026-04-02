@@ -118,6 +118,14 @@
   transform: translateY(-1px);
 }
 
+.ideas-action:disabled,
+.ideas-toggle:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .ideas-action--primary {
   color: #ffffff;
   background: linear-gradient(135deg, var(--ht-copper) 0%, #cf8a62 54%, var(--ht-slate) 100%);
@@ -198,6 +206,16 @@
 
 .ideas-board-meta p {
   margin: 0;
+}
+
+.ideas-board-meta__copy {
+  display: grid;
+  gap: 4px;
+}
+
+.ideas-board-meta__copy small {
+  color: var(--ht-muted);
+  line-height: 1.45;
 }
 
 .ideas-board-meta span {

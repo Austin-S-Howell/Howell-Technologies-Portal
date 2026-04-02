@@ -7,6 +7,13 @@ services:
         VITE_PUBLIC_BASE: /
         VITE_STATIC_FE_ONLY: "true"
         VITE_POC_API_BASE_URL: "${VITE_POC_API_BASE_URL:-http://localhost:8000}"
+        VITE_SUPABASE_URL: "${VITE_SUPABASE_URL:-}"
+        VITE_SUPABASE_ANON_KEY: "${VITE_SUPABASE_ANON_KEY:-}"
+        VITE_SUPABASE_AUTH_TABLE: "${VITE_SUPABASE_AUTH_TABLE:-users}"
+        VITE_SUPABASE_AUTH_USERNAME_COLUMN: "${VITE_SUPABASE_AUTH_USERNAME_COLUMN:-username}"
+        VITE_SUPABASE_AUTH_PASSWORD_COLUMN: "${VITE_SUPABASE_AUTH_PASSWORD_COLUMN:-password}"
+        VITE_SUPABASE_IDEAS_COLUMN: "${VITE_SUPABASE_IDEAS_COLUMN:-ideas}"
+        VITE_SUPABASE_SHARED_IDEAS_USERNAME: "${VITE_SUPABASE_SHARED_IDEAS_USERNAME:-shared}"
     image: howell-technologies-portal:latest
     container_name: howell-technologies-portal
     ports:

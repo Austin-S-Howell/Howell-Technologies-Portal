@@ -30,6 +30,7 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup() -> None:
+    settings.validate_security_settings()
     create_db_and_tables()
 
 

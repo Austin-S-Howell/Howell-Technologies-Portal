@@ -39,8 +39,7 @@ export function LoginPage() {
     } catch (caughtError) {
       if (
         caughtError instanceof Error &&
-        (caughtError.message === "Invalid mock credentials." ||
-          caughtError.message === "Login failed: Incorrect username/password combo.")
+        caughtError.message === "Login failed: Incorrect username/password combo."
       ) {
         setError("Login failed: Incorrect username/password combo.");
       } else {

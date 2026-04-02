@@ -1,4 +1,5 @@
 import json
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -140,6 +141,12 @@ def update_microsoft_config(
     body: MicrosoftConfigRequest,
     settings: Settings = Depends(get_settings),
 ) -> MicrosoftConfigResponse:
+    if not settings.allow_runtime_microsoft_config:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Runtime Microsoft config updates are disabled.",
+        )
+
     resolved_config = set_runtime_microsoft_config(
         client_id=body.clientId,
         client_secret=body.clientSecret,
@@ -174,7 +181,7 @@ def operator_login(
             detail=str(exc),
         ) from exc
 
-    if not record or record["password"] != body.password:
+    if not record or not secrets.compare_digest(record["password"], body.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=INVALID_OPERATOR_CREDENTIALS_MESSAGE,

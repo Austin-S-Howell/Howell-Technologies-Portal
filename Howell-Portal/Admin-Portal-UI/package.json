@@ -20,9 +20,12 @@
     "smoke": "bash ./scripts/smoke-operator.sh",
     "preview": "npm run preview --workspace @howell-technologies/operator-portal",
     "docker": "npm run docker:frontend",
-    "docker:frontend": "sh -c 'docker container rm -f howell-technologies-portal >/dev/null 2>&1 || true; while docker container inspect howell-technologies-portal >/dev/null 2>&1; do sleep 0.2; done; docker build -t howell-technologies-portal . && docker run -d --restart unless-stopped --name howell-technologies-portal -p ${PORT:-5173}:8080 howell-technologies-portal'",
+    "docker:frontend": "sh -c 'set -a; [ -f ./.env ] && . ./.env; set +a; docker container rm -f howell-technologies-portal >/dev/null 2>&1 || true; while docker container inspect howell-technologies-portal >/dev/null 2>&1; do sleep 0.2; done; docker build --build-arg VITE_PUBLIC_BASE=${VITE_PUBLIC_BASE:-/} --build-arg VITE_STATIC_FE_ONLY=${VITE_STATIC_FE_ONLY:-true} --build-arg VITE_POC_API_BASE_URL=${VITE_POC_API_BASE_URL:-} --build-arg VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-} --build-arg VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-} --build-arg VITE_SUPABASE_AUTH_TABLE=${VITE_SUPABASE_AUTH_TABLE:-users} --build-arg VITE_SUPABASE_AUTH_USERNAME_COLUMN=${VITE_SUPABASE_AUTH_USERNAME_COLUMN:-username} --build-arg VITE_SUPABASE_AUTH_PASSWORD_COLUMN=${VITE_SUPABASE_AUTH_PASSWORD_COLUMN:-password} --build-arg VITE_SUPABASE_IDEAS_COLUMN=${VITE_SUPABASE_IDEAS_COLUMN:-ideas} --build-arg VITE_SUPABASE_SHARED_IDEAS_USERNAME=${VITE_SUPABASE_SHARED_IDEAS_USERNAME:-shared} -t howell-technologies-portal . && docker run -d --restart unless-stopped --name howell-technologies-portal -p ${PORT:-5173}:8080 howell-technologies-portal'",
     "docker:api": "sh -c 'docker container rm -f howell-technologies-poc-api >/dev/null 2>&1 || true; while docker container inspect howell-technologies-poc-api >/dev/null 2>&1; do sleep 0.2; done; docker build -t howell-technologies-poc-api ../Admin-Portal-BE/poc-api && docker run -d --restart unless-stopped --name howell-technologies-poc-api -p ${POC_API_PORT:-8000}:8000 howell-technologies-poc-api'",
     "docker:stack": "docker compose up --build -d --remove-orphans"
+  },
+  "overrides": {
+    "picomatch": "^4.0.4"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",

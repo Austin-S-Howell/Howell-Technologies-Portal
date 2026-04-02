@@ -3,6 +3,7 @@ import os
 os.environ.setdefault("POC_API_DATABASE_URL", "sqlite:///./test_poc_api.db")
 os.environ.setdefault("POC_API_SESSION_SECRET", "test-secret")
 os.environ.setdefault("POC_API_ALLOW_DEV_HEADER_AUTH", "true")
+os.environ.setdefault("POC_API_ALLOW_RUNTIME_MICROSOFT_CONFIG", "true")
 
 import pytest
 from fastapi.testclient import TestClient

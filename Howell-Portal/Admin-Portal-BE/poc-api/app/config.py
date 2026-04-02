@@ -29,7 +29,8 @@ class Settings(BaseSettings):
     session_https_only: bool = False
     allowed_origins: str = "http://localhost:5173"
     frontend_redirect_url: str = "http://localhost:5173/demo-workbench"
-    allow_dev_header_auth: bool = True
+    allow_dev_header_auth: bool = False
+    allow_runtime_microsoft_config: bool = False
     portal_runtime_ingest_key: str | None = None
     portal_runtime_stale_after_seconds: int = 180
     operator_users_schema: str = "public"
@@ -56,6 +57,10 @@ class Settings(BaseSettings):
         return bool(self.ms_client_id and self.ms_client_secret and self.ms_tenant_id)
 
     @property
+    def is_development_like(self) -> bool:
+        return self.environment.strip().lower() in {"development", "dev", "local", "test"}
+
+    @property
     def resolved_database_url(self) -> str:
         database_url = (self.database_url or "").strip()
         if database_url:
@@ -75,6 +80,21 @@ class Settings(BaseSettings):
             )
 
         return "sqlite:///./poc_api.db"
+
+    def validate_security_settings(self) -> None:
+        if self.is_development_like:
+            return
+
+        if self.session_secret == "replace-this-in-production":
+            raise RuntimeError("POC_API_SESSION_SECRET must be set outside development/test environments.")
+
+        if self.allow_dev_header_auth:
+            raise RuntimeError("POC_API_ALLOW_DEV_HEADER_AUTH must be disabled outside development/test environments.")
+
+        if self.allow_runtime_microsoft_config:
+            raise RuntimeError(
+                "POC_API_ALLOW_RUNTIME_MICROSOFT_CONFIG must be disabled outside development/test environments."
+            )
 
 
 @lru_cache

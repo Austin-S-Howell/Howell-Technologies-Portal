@@ -19,6 +19,7 @@ dependencies = [
   "pydantic>=2.10.0",
   "pydantic-settings>=2.7.0",
   "itsdangerous>=2.2.0",
+  "requests>=2.33.0",
 ]
 
 [project.optional-dependencies]

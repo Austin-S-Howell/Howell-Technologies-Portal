@@ -40,19 +40,16 @@ Or use the repo script:
 npm run docker
 ```
 
-`npm run docker` now starts the frontend only with static/mock login:
+`npm run docker` now starts the frontend only:
 
 - Frontend: `http://localhost:5173`
-- Static login credentials:
-  - `austin@howelltechnologies.com` / `admin`
-  - `brian@howelltechnologies.com` / `admin`
-  - `sarah@howelltechnologies.com` / `admin`
+- Login requires either frontend Supabase env vars or backend auth configuration.
 
 Use `npm run docker:stack` when you want the full stack (frontend + backend) via Docker Compose:
 
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:8000`
-- The frontend build in the Docker stack now still uses static/mock login by default.
+- The frontend build in the Docker stack does not bundle mock login users anymore.
 - The local backend also seeds these operator credentials in SQLite if you hit backend auth directly:
   - `austin@howelltechnologies.com` / `admin`
   - `brian@howelltechnologies.com` / `admin`
@@ -63,11 +60,47 @@ To point local Docker at Supabase or another managed Postgres instance instead o
 ```bash
 export POC_API_DATABASE_URL='postgresql://postgres.YOUR_PROJECT_REF:YOUR_PASSWORD@aws-1-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require'
 export POC_API_OPERATOR_USERS_SCHEMA='public'
-export POC_API_OPERATOR_USERS_TABLE='userPreference'
+export POC_API_OPERATOR_USERS_TABLE='users'
 export POC_API_SESSION_SECRET='YOUR_LOCAL_SESSION_SECRET'
 ```
 
-The backend still supports component-based DB settings (`POC_API_DB_HOST`, `POC_API_DB_USER`, `POC_API_DB_PASSWORD`, etc.) when no full `POC_API_DATABASE_URL` is provided, but the Docker stack now defaults to the local SQLite database unless you explicitly set the full URL. If you want the frontend to use backend auth instead of static login, rebuild with `VITE_STATIC_FE_ONLY=false`.
+The backend still supports component-based DB settings (`POC_API_DB_HOST`, `POC_API_DB_USER`, `POC_API_DB_PASSWORD`, etc.) when no full `POC_API_DATABASE_URL` is provided, but the Docker stack now defaults to the local SQLite database unless you explicitly set the full URL. If you want the frontend to use backend auth instead of frontend-only Supabase login, rebuild with `VITE_STATIC_FE_ONLY=false`.
+
+## Frontend-Only Supabase Mode
+
+The operator portal can also run a frontend-only Supabase path for operator login plus Ideas board sync. This is intended for lightweight internal/demo setups where you accept the tradeoff of doing the auth lookup directly from the client.
+
+Required frontend env vars:
+
+```bash
+export VITE_SUPABASE_URL='https://YOUR_PROJECT_REF.supabase.co'
+export VITE_SUPABASE_ANON_KEY='YOUR_SUPABASE_ANON_KEY'
+export VITE_SUPABASE_AUTH_TABLE='users'
+export VITE_SUPABASE_AUTH_USERNAME_COLUMN='username'
+export VITE_SUPABASE_AUTH_PASSWORD_COLUMN='password'
+export VITE_SUPABASE_IDEAS_COLUMN='ideas'
+export VITE_SUPABASE_SHARED_IDEAS_USERNAME='shared'
+```
+
+Minimum table shape expected by the FE:
+
+```sql
+create table if not exists public.users (
+  username text primary key,
+  password text not null,
+  ideas jsonb not null default '{"notes":[],"paths":[]}'::jsonb
+);
+```
+
+How board storage works:
+
+- Private board: the logged-in user row's `ideas` JSON
+- Shared board: the `ideas` JSON on the row whose `username` matches `VITE_SUPABASE_SHARED_IDEAS_USERNAME`
+
+Important:
+
+- This FE-only login mode checks the operator table directly from the browser. Treat it as temporary/internal, not a production-grade auth model.
+- The Supabase setup should use a public `anon` key, not the raw Postgres password from `.env`.
 
 To run frontend only:
 

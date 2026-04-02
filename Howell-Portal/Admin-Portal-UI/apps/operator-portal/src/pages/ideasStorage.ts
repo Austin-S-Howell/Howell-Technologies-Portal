@@ -122,33 +122,44 @@ function getLocalStorage() {
   }
 }
 
-export function loadIdeasBoardState(): IdeasBoardState {
+export function getIdeasStorageKey(scopeKey?: string) {
+  const normalized = (scopeKey || "").trim();
+  if (!normalized) {
+    return IDEAS_STORAGE_KEY;
+  }
+  return `${IDEAS_STORAGE_KEY}:${normalized}`;
+}
+
+export function sanitizeIdeasBoardState(value: unknown): IdeasBoardState {
+  const parsed = isRecord(value) ? value : {};
+  const notes = Array.isArray(parsed.notes) ? parsed.notes.map(sanitizeNote).filter(isStickyNote) : [];
+  const paths = Array.isArray(parsed.paths) ? parsed.paths.map(sanitizePath).filter(isDrawingPath) : [];
+  return { notes, paths };
+}
+
+export function loadIdeasBoardState(scopeKey?: string): IdeasBoardState {
   const storage = getLocalStorage();
   if (!storage) {
     return EMPTY_IDEAS_BOARD_STATE;
   }
 
   try {
-    const raw = storage.getItem(IDEAS_STORAGE_KEY);
+    const raw = storage.getItem(getIdeasStorageKey(scopeKey));
     if (!raw) {
       return EMPTY_IDEAS_BOARD_STATE;
     }
 
-    const parsed = JSON.parse(raw) as { notes?: unknown; paths?: unknown };
-    const notes = Array.isArray(parsed.notes) ? parsed.notes.map(sanitizeNote).filter(isStickyNote) : [];
-    const paths = Array.isArray(parsed.paths) ? parsed.paths.map(sanitizePath).filter(isDrawingPath) : [];
-
-    return { notes, paths };
+    return sanitizeIdeasBoardState(JSON.parse(raw));
   } catch {
     return EMPTY_IDEAS_BOARD_STATE;
   }
 }
 
-export function saveIdeasBoardState(state: IdeasBoardState) {
+export function saveIdeasBoardState(state: IdeasBoardState, scopeKey?: string) {
   const storage = getLocalStorage();
   if (!storage) {
     return;
   }
 
-  storage.setItem(IDEAS_STORAGE_KEY, JSON.stringify(state));
+  storage.setItem(getIdeasStorageKey(scopeKey), JSON.stringify(state));
 }

@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { downloadIdeasBoardSnapshotPng } from "./ideasExport";
+import { type IdeasBoardScope, isSupabaseIdeasEnabled, loadIdeasBoardFromSupabase, saveIdeasBoardToSupabase } from "./ideasSupabase";
 import {
   EMPTY_IDEAS_BOARD_STATE,
+  getIdeasStorageKey,
   loadIdeasBoardState,
   MIN_NOTE_HEIGHT,
   MIN_NOTE_WIDTH,
@@ -9,11 +12,13 @@ import {
   type StickyNote,
   type WhiteboardPoint,
 } from "./ideasStorage";
+import { readSession } from "../services/sessionStorage";
 
 const NOTE_COLORS = ["#f8e587", "#ffd4aa", "#cce4ff", "#cfeec9", "#e4d6ff", "#ffd4df"];
 const STROKE_COLORS = ["#b86b3d", "#424852", "#2f6db0", "#2f9150", "#7f3fbf", "#b0225f"];
 const SAVE_DEBOUNCE_MS = 180;
 const MAX_UNDO_STEPS = 50;
+const IDEAS_BOARD_SCOPE_KEY = "ht.operatorPortal.ideasBoardScope.v1";
 
 function buildId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -34,6 +39,31 @@ function isTouchDevice() {
     return true;
   }
   return typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
+}
+
+function getStoredIdeasBoardScope(): IdeasBoardScope {
+  if (typeof window === "undefined") {
+    return "private";
+  }
+
+  try {
+    const raw = window.localStorage.getItem(IDEAS_BOARD_SCOPE_KEY);
+    return raw === "shared" ? "shared" : "private";
+  } catch {
+    return "private";
+  }
+}
+
+function persistIdeasBoardScope(scope: IdeasBoardScope) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(IDEAS_BOARD_SCOPE_KEY, scope);
+  } catch {
+    // Ignore localStorage failures.
+  }
 }
 
 function createStickyNote(index: number, color: string, boardWidth: number, boardHeight: number): StickyNote {
@@ -128,9 +158,12 @@ function getRenderedNoteFrame(note: StickyNote, boardWidth: number, boardHeight:
 }
 
 export function IdeasPage() {
-  const initialState = loadIdeasBoardState();
-  const [notes, setNotes] = useState(initialState.notes);
-  const [paths, setPaths] = useState(initialState.paths);
+  const operatorSession = readSession();
+  const operatorEmail = operatorSession?.email ?? "";
+  const supabaseIdeasEnabled = isSupabaseIdeasEnabled();
+  const [boardScope, setBoardScope] = useState<IdeasBoardScope>(() => getStoredIdeasBoardScope());
+  const [notes, setNotes] = useState(EMPTY_IDEAS_BOARD_STATE.notes);
+  const [paths, setPaths] = useState(EMPTY_IDEAS_BOARD_STATE.paths);
   const [tool, setTool] = useState<"pen" | "eraser">("pen");
   const [strokeColor, setStrokeColor] = useState(STROKE_COLORS[0]);
   const [strokeWidth, setStrokeWidth] = useState(5);
@@ -139,6 +172,10 @@ export function IdeasPage() {
   const [draftPath, setDraftPath] = useState<DrawingPath | null>(null);
   const [history, setHistory] = useState<Array<ReturnType<typeof cloneBoardState>>>([]);
   const [isTouchInput, setIsTouchInput] = useState(false);
+  const [boardLoading, setBoardLoading] = useState(true);
+  const [boardSaving, setBoardSaving] = useState(false);
+  const [boardStatus, setBoardStatus] = useState("Loading board...");
+  const [boardError, setBoardError] = useState("");
   const boardRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingPointerIdRef = useRef<number | null>(null);
@@ -158,6 +195,7 @@ export function IdeasPage() {
     startWidth: number;
     startHeight: number;
   } | null>(null);
+  const activeBoardStorageKey = getIdeasStorageKey(boardScope === "shared" ? "shared" : `private:${operatorEmail || "anonymous"}`);
 
   useEffect(() => {
     draftPathRef.current = draftPath;
@@ -200,14 +238,85 @@ export function IdeasPage() {
   }, []);
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      saveIdeasBoardState({ notes, paths });
+    persistIdeasBoardScope(boardScope);
+  }, [boardScope]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const localState = loadIdeasBoardState(activeBoardStorageKey);
+
+    setBoardLoading(true);
+    setBoardError("");
+    setBoardStatus(supabaseIdeasEnabled ? "Loading board from Supabase..." : "Using browser-only board storage.");
+    setHistory([]);
+    noteDragRef.current = null;
+    noteResizeRef.current = null;
+    drawingPointerIdRef.current = null;
+    draftPathRef.current = null;
+    textEditSessionRef.current = null;
+    setDraftPath(null);
+    setNotes(localState.notes);
+    setPaths(localState.paths);
+
+    if (!supabaseIdeasEnabled) {
+      setBoardLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void (async () => {
+      try {
+        const remoteState = await loadIdeasBoardFromSupabase(boardScope, operatorEmail);
+        if (cancelled) {
+          return;
+        }
+
+        const shouldKeepLocal =
+          remoteState !== null &&
+          remoteState.notes.length === 0 &&
+          remoteState.paths.length === 0 &&
+          (localState.notes.length > 0 || localState.paths.length > 0);
+        const resolvedState = remoteState && !shouldKeepLocal ? remoteState : localState;
+        setNotes(resolvedState.notes);
+        setPaths(resolvedState.paths);
+        setBoardStatus(
+          shouldKeepLocal
+            ? "Loaded local board and ready to sync it to Supabase."
+            : boardScope === "shared"
+              ? "Shared board synced with Supabase."
+              : "Private board synced with Supabase.",
+        );
+      } catch {
+        if (!cancelled) {
+          setBoardError("Unable to load the Supabase board right now. Using the local browser copy.");
+          setBoardStatus("Using local board backup.");
+        }
+      } finally {
+        if (!cancelled) {
+          setBoardLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeBoardStorageKey, boardScope, operatorEmail, supabaseIdeasEnabled]);
+
+  useEffect(() => {
+    if (boardLoading) {
+      return;
+    }
+
+    const localTimeoutId = window.setTimeout(() => {
+      saveIdeasBoardState({ notes, paths }, activeBoardStorageKey);
     }, SAVE_DEBOUNCE_MS);
 
     return () => {
-      window.clearTimeout(timeoutId);
+      window.clearTimeout(localTimeoutId);
     };
-  }, [notes, paths]);
+  }, [activeBoardStorageKey, boardLoading, notes, paths]);
 
   useEffect(() => {
     const board = boardRef.current;
@@ -526,6 +635,62 @@ export function IdeasPage() {
     setNotes((current) => current.map((note) => (note.id === noteId ? { ...note, ...patch } : note)));
   }
 
+  function getExportSize() {
+    const board = boardRef.current;
+    if (board) {
+      const rect = board.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        return {
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+        };
+      }
+    }
+
+    return {
+      width: Math.max(boardSize.width, 960),
+      height: Math.max(boardSize.height, 640),
+    };
+  }
+
+  function handleDownloadSnapshot() {
+    try {
+      const size = getExportSize();
+      downloadIdeasBoardSnapshotPng({
+        notes,
+        paths,
+        width: size.width,
+        height: size.height,
+      });
+    } catch {
+      window.alert("Unable to download the board snapshot in this browser.");
+    }
+  }
+
+  async function handleSaveBoard() {
+    saveIdeasBoardState({ notes, paths }, activeBoardStorageKey);
+
+    if (!supabaseIdeasEnabled) {
+      setBoardError("");
+      setBoardStatus(`${activeBoardName} saved in this browser.`);
+      return;
+    }
+
+    setBoardSaving(true);
+    setBoardError("");
+    try {
+      await saveIdeasBoardToSupabase(boardScope, operatorEmail, { notes, paths });
+      setBoardStatus(boardScope === "shared" ? "Shared board saved to the shared Supabase row." : "Private board saved to your Supabase row.");
+    } catch (error) {
+      setBoardError(error instanceof Error ? error.message : "Supabase save failed.");
+      setBoardStatus("Using local board backup.");
+    } finally {
+      setBoardSaving(false);
+    }
+  }
+
+  const hasBoardContent = notes.length > 0 || paths.length > 0;
+  const activeBoardName = boardScope === "shared" ? "Shared ideas board" : "Private ideas board";
   const whiteboardHint = isTouchInput
     ? "Drag notes by the handle. Draw directly on the board with your finger."
     : "Drag notes by the handle. Draw or erase directly on the board.";
@@ -537,27 +702,56 @@ export function IdeasPage() {
           <p className="eyebrow">Ideas Board</p>
           <h1>Ideas whiteboard</h1>
           <p className="lead">
-            A local-only planning surface for sticky notes, quick sketches, and throwaway thinking that persists in
-            this browser.
+            A planning surface for sticky notes, quick sketches, and throwaway thinking with private and shared board
+            modes.
           </p>
         </div>
         <div className="ideas-page__summary">
           <article className="ideas-summary-card">
-            <span>Notes</span>
-            <strong>{notes.length}</strong>
+            <span>Board</span>
+            <strong>{boardScope === "shared" ? "Shared" : "Private"}</strong>
           </article>
           <article className="ideas-summary-card">
-            <span>Sketches</span>
-            <strong>{paths.length}</strong>
+            <span>Items</span>
+            <strong>{notes.length + paths.length}</strong>
           </article>
         </div>
       </header>
 
       <section className="ideas-toolbar">
         <div className="ideas-toolbar__cluster">
+          <button
+            type="button"
+            className={boardScope === "private" ? "ideas-toggle is-active" : "ideas-toggle"}
+            onClick={() => setBoardScope("private")}
+            aria-pressed={boardScope === "private"}
+          >
+            <i className="pi pi-lock" aria-hidden="true" />
+            Private board
+          </button>
+          <button
+            type="button"
+            className={boardScope === "shared" ? "ideas-toggle is-active" : "ideas-toggle"}
+            onClick={() => setBoardScope("shared")}
+            aria-pressed={boardScope === "shared"}
+          >
+            <i className="pi pi-users" aria-hidden="true" />
+            Shared board
+          </button>
           <button type="button" className="ideas-action ideas-action--primary" onClick={handleAddNote}>
             <i className="pi pi-plus" aria-hidden="true" />
             Add sticky note
+          </button>
+          <button
+            type="button"
+            className="ideas-action ideas-action--ghost"
+            onClick={() => {
+              void handleSaveBoard();
+            }}
+            disabled={boardSaving || boardLoading}
+          >
+            <i className="pi pi-save" aria-hidden="true" />
+            {boardSaving ? "Saving..." : boardScope === "shared" ? "Save shared" : "Save private"}
           </button>
           <button
             type="button"
@@ -585,6 +779,15 @@ export function IdeasPage() {
           >
             <i className="pi pi-eraser" aria-hidden="true" />
             Eraser
+          </button>
+          <button
+            type="button"
+            className="ideas-action ideas-action--ghost"
+            onClick={handleDownloadSnapshot}
+            disabled={!hasBoardContent}
+          >
+            <i className="pi pi-image" aria-hidden="true" />
+            Download PNG
           </button>
         </div>
 
@@ -644,8 +847,14 @@ export function IdeasPage() {
 
       <section className="ideas-board-shell">
         <div className="ideas-board-meta">
-          <p>{whiteboardHint}</p>
-          <span>{tool === "eraser" ? "Erasing strokes" : "Sketching mode"}</span>
+          <div className="ideas-board-meta__copy">
+            <p>{whiteboardHint}</p>
+            <small>
+              {boardLoading ? `Loading ${activeBoardName.toLowerCase()}...` : boardStatus}
+              {boardError ? ` ${boardError}` : ""}
+            </small>
+          </div>
+          <span>{tool === "eraser" ? "Erasing strokes" : activeBoardName}</span>
         </div>
 
         <div ref={boardRef} className="ideas-board">
@@ -658,10 +867,14 @@ export function IdeasPage() {
             onPointerCancel={handleCanvasPointerCancel}
           />
 
-          {notes.length === 0 && paths.length === 0 ? (
+          {!hasBoardContent ? (
             <div className="ideas-board__empty-state">
               <strong>Start with a note or a sketch</strong>
-              <p>The board saves automatically to localStorage on this device.</p>
+              <p>
+                {supabaseIdeasEnabled
+                  ? `${activeBoardName} syncs through Supabase and also keeps a local browser backup.`
+                  : `${activeBoardName} saves automatically in this browser on this device.`}
+              </p>
             </div>
           ) : null}
 

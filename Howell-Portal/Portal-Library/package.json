@@ -25,6 +25,9 @@
     "test": "vitest run",
     "lint": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.lib.json"
   },
+  "overrides": {
+    "picomatch": "^4.0.4"
+  },
   "peerDependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
