@@ -1,3 +1,4 @@
+import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import type { IdeasBoardState } from "./ideasStorage";
 import { EMPTY_IDEAS_BOARD_STATE, sanitizeIdeasBoardState } from "./ideasStorage";
 import { getSupabaseClient, getSupabaseConfig } from "../services/supabaseClient";
@@ -27,6 +28,10 @@ function parseIdeasPayload(rawIdeas: unknown) {
   }
 
   return rawIdeas;
+}
+
+function parseIdeasStateFromRow(row: Record<string, unknown> | null, ideasColumn: string) {
+  return sanitizeIdeasBoardState(parseIdeasPayload(row?.[ideasColumn]));
 }
 
 export function isSupabaseIdeasEnabled() {
@@ -61,7 +66,7 @@ export async function loadIdeasBoardFromSupabase(scope: IdeasBoardScope, userEma
     return EMPTY_IDEAS_BOARD_STATE;
   }
 
-  return sanitizeIdeasBoardState(parseIdeasPayload(data[config.ideasColumn]));
+  return parseIdeasStateFromRow(data, config.ideasColumn);
 }
 
 export async function saveIdeasBoardToSupabase(
@@ -96,4 +101,52 @@ export async function saveIdeasBoardToSupabase(
   if (!data || data.length === 0) {
     throw new Error(`Ideas row not found for ${scope === "shared" ? "shared" : "private"} board user.`);
   }
+}
+
+type SharedIdeasSubscriptionHandlers = {
+  onState: (state: IdeasBoardState) => void;
+  onSubscribed?: () => void;
+  onError?: (message: string) => void;
+};
+
+export function subscribeToSharedIdeasBoard(handlers: SharedIdeasSubscriptionHandlers) {
+  const client = getSupabaseClient();
+  const config = getSupabaseConfig();
+  if (!client || !config) {
+    return null;
+  }
+
+  const filter = `${config.authUsernameColumn}=eq.${normalizeUserEmail(config.sharedIdeasUsername)}`;
+  const channelName = `ideas-shared-board-${config.authTable}-${normalizeUserEmail(config.sharedIdeasUsername)}`;
+
+  const channel: RealtimeChannel = client
+    .channel(channelName)
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: config.authTable,
+        filter,
+      },
+      (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+        const nextRow =
+          payload.new && typeof payload.new === "object" ? (payload.new as Record<string, unknown>) : null;
+        handlers.onState(parseIdeasStateFromRow(nextRow, config.ideasColumn));
+      },
+    )
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        handlers.onSubscribed?.();
+        return;
+      }
+
+      if (status === "CHANNEL_ERROR") {
+        handlers.onError?.("Supabase live updates failed to connect for the shared board.");
+      }
+    });
+
+  return {
+    unsubscribe: () => client.removeChannel(channel),
+  };
 }

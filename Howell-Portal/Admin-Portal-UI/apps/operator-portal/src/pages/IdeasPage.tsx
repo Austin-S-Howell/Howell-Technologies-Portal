@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { downloadIdeasBoardSnapshotPng } from "./ideasExport";
-import { type IdeasBoardScope, isSupabaseIdeasEnabled, loadIdeasBoardFromSupabase, saveIdeasBoardToSupabase } from "./ideasSupabase";
+import {
+  type IdeasBoardScope,
+  isSupabaseIdeasEnabled,
+  loadIdeasBoardFromSupabase,
+  saveIdeasBoardToSupabase,
+  subscribeToSharedIdeasBoard,
+} from "./ideasSupabase";
 import {
   EMPTY_IDEAS_BOARD_STATE,
   getIdeasStorageKey,
@@ -20,7 +26,6 @@ const SAVE_DEBOUNCE_MS = 180;
 const MAX_UNDO_STEPS = 50;
 const IDEAS_BOARD_SCOPE_KEY = "ht.operatorPortal.ideasBoardScope.v1";
 const IDEAS_SHARED_LIVE_UPDATES_KEY = "ht.operatorPortal.ideasSharedLiveUpdates.v1";
-const SHARED_BOARD_REFRESH_INTERVAL_MS = 5000;
 
 function buildId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -207,7 +212,10 @@ export function IdeasPage() {
   const [boardSaving, setBoardSaving] = useState(false);
   const [boardStatus, setBoardStatus] = useState("Loading board...");
   const [boardError, setBoardError] = useState("");
+  const [boardFullscreen, setBoardFullscreen] = useState(false);
   const [sharedLiveUpdatesEnabled, setSharedLiveUpdatesEnabled] = useState(() => getStoredSharedLiveUpdatesEnabled());
+  const [sharedLiveUpdatesConnected, setSharedLiveUpdatesConnected] = useState(false);
+  const boardShellRef = useRef<HTMLElement | null>(null);
   const boardRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const boardStateRef = useRef(cloneBoardState(EMPTY_IDEAS_BOARD_STATE.notes, EMPTY_IDEAS_BOARD_STATE.paths));
@@ -249,6 +257,22 @@ export function IdeasPage() {
     return () => {
       mountedRef.current = false;
       boardLoadRequestIdRef.current += 1;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const handleFullscreenChange = () => {
+      setBoardFullscreen(document.fullscreenElement === boardShellRef.current);
+    };
+
+    handleFullscreenChange();
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, []);
 
@@ -301,18 +325,53 @@ export function IdeasPage() {
   }, [sharedLiveUpdatesEnabled]);
 
   useEffect(() => {
+    setSharedLiveUpdatesConnected(false);
+
     if (!supabaseIdeasEnabled || boardScope !== "shared" || !sharedLiveUpdatesEnabled || boardLoading) {
       return;
     }
 
-    void loadBoard({ mode: "poll", preserveLocalWhenRemoteEmpty: false });
+    void loadBoard({ mode: "live", preserveLocalWhenRemoteEmpty: false });
 
-    const intervalId = window.setInterval(() => {
-      void loadBoard({ mode: "poll", preserveLocalWhenRemoteEmpty: false });
-    }, SHARED_BOARD_REFRESH_INTERVAL_MS);
+    const subscription = subscribeToSharedIdeasBoard({
+      onState: (nextState) => {
+        if (!mountedRef.current) {
+          return;
+        }
+
+        const resolvedState = cloneBoardState(nextState.notes, nextState.paths);
+        if (!boardStatesMatch(boardStateRef.current, resolvedState)) {
+          applyBoardState(resolvedState);
+          setBoardStatus("Shared board updated live from Supabase.");
+        }
+        setBoardError("");
+      },
+      onSubscribed: () => {
+        if (!mountedRef.current) {
+          return;
+        }
+
+        setSharedLiveUpdatesConnected(true);
+        setBoardError("");
+      },
+      onError: (message) => {
+        if (!mountedRef.current) {
+          return;
+        }
+
+        setSharedLiveUpdatesConnected(false);
+        setBoardError(message);
+      },
+    });
+
+    if (!subscription) {
+      setBoardError("Supabase live updates are not available for the shared board.");
+      return;
+    }
 
     return () => {
-      window.clearInterval(intervalId);
+      setSharedLiveUpdatesConnected(false);
+      void subscription.unsubscribe();
     };
   }, [boardLoading, boardScope, operatorEmail, sharedLiveUpdatesEnabled, supabaseIdeasEnabled]);
 
@@ -697,7 +756,7 @@ export function IdeasPage() {
   }
 
   async function loadBoard(options: {
-    mode: "initial" | "manual" | "poll";
+    mode: "initial" | "manual" | "live";
     preserveLocalWhenRemoteEmpty: boolean;
   }) {
     const requestId = ++boardLoadRequestIdRef.current;
@@ -765,7 +824,9 @@ export function IdeasPage() {
             : `${activeBoardName} already matches Supabase.`,
         );
       } else if (boardChanged) {
-        setBoardStatus("Shared board updated from Supabase.");
+        setBoardStatus(
+          options.mode === "live" ? "Shared board updated live from Supabase." : "Shared board updated from Supabase.",
+        );
       }
     } catch (error) {
       if (!mountedRef.current || requestId !== boardLoadRequestIdRef.current) {
@@ -792,6 +853,29 @@ export function IdeasPage() {
 
   async function handleRefreshBoard() {
     await loadBoard({ mode: "manual", preserveLocalWhenRemoteEmpty: false });
+  }
+
+  async function handleToggleFullscreen() {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const boardShell = boardShellRef.current;
+    if (!boardShell || typeof boardShell.requestFullscreen !== "function") {
+      setBoardError("Fullscreen is not available in this browser.");
+      return;
+    }
+
+    try {
+      if (document.fullscreenElement === boardShell) {
+        await document.exitFullscreen();
+      } else {
+        await boardShell.requestFullscreen();
+      }
+      setBoardError("");
+    } catch {
+      setBoardError("Unable to change fullscreen mode for the ideas board.");
+    }
   }
 
   async function handleSaveBoard() {
@@ -883,7 +967,11 @@ export function IdeasPage() {
               disabled={boardLoading || boardSaving}
             >
               <i className="pi pi-sync" aria-hidden="true" />
-              {sharedLiveUpdatesEnabled ? "Live updates on" : "Live updates off"}
+              {sharedLiveUpdatesEnabled
+                ? sharedLiveUpdatesConnected
+                  ? "Live updates on"
+                  : "Connecting live updates..."
+                : "Live updates off"}
             </button>
           ) : null}
           <button
@@ -989,7 +1077,10 @@ export function IdeasPage() {
         </div>
       </section>
 
-      <section className="ideas-board-shell">
+      <section
+        ref={boardShellRef}
+        className={boardFullscreen ? "ideas-board-shell is-fullscreen" : "ideas-board-shell"}
+      >
         <div className="ideas-board-meta">
           <div className="ideas-board-meta__copy">
             <p>{whiteboardHint}</p>
@@ -998,7 +1089,19 @@ export function IdeasPage() {
               {boardError ? ` ${boardError}` : ""}
             </small>
           </div>
-          <span>{tool === "eraser" ? "Erasing strokes" : activeBoardName}</span>
+          <div className="ideas-board-meta__actions">
+            <span>{tool === "eraser" ? "Erasing strokes" : activeBoardName}</span>
+            <button
+              type="button"
+              className="ideas-action ideas-action--ghost"
+              onClick={() => {
+                void handleToggleFullscreen();
+              }}
+            >
+              <i className={boardFullscreen ? "pi pi-window-minimize" : "pi pi-window-maximize"} aria-hidden="true" />
+              {boardFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            </button>
+          </div>
         </div>
 
         <div ref={boardRef} className="ideas-board">
