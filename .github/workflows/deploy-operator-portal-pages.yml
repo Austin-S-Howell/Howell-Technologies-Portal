@@ -2,22 +2,6 @@ name: Deploy Operator Portal (Pages)
 
 on:
   workflow_dispatch:
-    inputs:
-      use_custom_domain:
-        description: "Include CNAME for portal.howelltechnologies.com"
-        required: false
-        default: false
-        type: boolean
-      static_fe_only:
-        description: "Build static frontend only (Pages still requires an explicit auth target)"
-        required: false
-        default: false
-        type: boolean
-      api_base_url:
-        description: "API base URL when backend integration is enabled"
-        required: false
-        default: ""
-        type: string
 
 permissions:
   contents: read
@@ -51,26 +35,41 @@ jobs:
         working-directory: Howell-Portal/Admin-Portal-UI
 
       - name: Configure frontend build mode
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_AUTH_TABLE: ${{ vars.VITE_SUPABASE_AUTH_TABLE }}
+          VITE_SUPABASE_AUTH_USERNAME_COLUMN: ${{ vars.VITE_SUPABASE_AUTH_USERNAME_COLUMN }}
+          VITE_SUPABASE_AUTH_PASSWORD_COLUMN: ${{ vars.VITE_SUPABASE_AUTH_PASSWORD_COLUMN }}
+          VITE_SUPABASE_IDEAS_COLUMN: ${{ vars.VITE_SUPABASE_IDEAS_COLUMN }}
+          VITE_SUPABASE_SHARED_IDEAS_USERNAME: ${{ vars.VITE_SUPABASE_SHARED_IDEAS_USERNAME }}
         run: |
           set -euo pipefail
-          if [ "${{ inputs.use_custom_domain }}" = "true" ]; then
-            BASE_PATH="/"
-          else
-            BASE_PATH="/${{ github.event.repository.name }}/"
-          fi
+          BASE_PATH="/${{ github.event.repository.name }}/"
 
-          if [ "${{ inputs.static_fe_only }}" = "true" ]; then
-            echo "GitHub Pages deployment still blocks static_fe_only because the portal needs an explicit auth target."
+          if [ -z "${VITE_SUPABASE_URL}" ]; then
+            echo "Missing GitHub variable VITE_SUPABASE_URL."
             exit 1
           fi
 
-          if [ -z "${{ inputs.api_base_url }}" ]; then
-            echo "api_base_url is required for GitHub Pages deployment."
+          if [ -z "${VITE_SUPABASE_ANON_KEY}" ]; then
+            echo "Missing GitHub secret VITE_SUPABASE_ANON_KEY."
             exit 1
           fi
 
-          printf "VITE_PUBLIC_BASE=%s\nVITE_STATIC_FE_ONLY=false\nVITE_POC_API_BASE_URL=%s\n" "$BASE_PATH" "${{ inputs.api_base_url }}" > apps/operator-portal/.env.production.local
-          echo "Configured frontend build with backend integration enabled."
+          printf '%s\n' \
+            "VITE_PUBLIC_BASE=${BASE_PATH}" \
+            "VITE_STATIC_FE_ONLY=true" \
+            "VITE_SUPABASE_URL=${VITE_SUPABASE_URL}" \
+            "VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}" \
+            "VITE_SUPABASE_AUTH_TABLE=${VITE_SUPABASE_AUTH_TABLE:-users}" \
+            "VITE_SUPABASE_AUTH_USERNAME_COLUMN=${VITE_SUPABASE_AUTH_USERNAME_COLUMN:-username}" \
+            "VITE_SUPABASE_AUTH_PASSWORD_COLUMN=${VITE_SUPABASE_AUTH_PASSWORD_COLUMN:-password}" \
+            "VITE_SUPABASE_IDEAS_COLUMN=${VITE_SUPABASE_IDEAS_COLUMN:-ideas}" \
+            "VITE_SUPABASE_SHARED_IDEAS_USERNAME=${VITE_SUPABASE_SHARED_IDEAS_USERNAME:-shared}" \
+            > apps/operator-portal/.env.production.local
+
+          echo "Configured frontend build for Supabase-backed GitHub Pages deployment."
         working-directory: Howell-Portal/Admin-Portal-UI
 
       - name: Build operator portal
@@ -101,16 +100,7 @@ jobs:
         working-directory: Howell-Portal/Admin-Portal-UI
 
       - name: Remove custom domain file
-        if: ${{ !inputs.use_custom_domain }}
         run: rm -f apps/operator-portal/dist/CNAME
-        working-directory: Howell-Portal/Admin-Portal-UI
-
-      - name: Ensure custom domain file
-        if: ${{ inputs.use_custom_domain }}
-        run: |
-          if [ ! -f apps/operator-portal/dist/CNAME ]; then
-            cp apps/operator-portal/public/CNAME apps/operator-portal/dist/CNAME
-          fi
         working-directory: Howell-Portal/Admin-Portal-UI
 
       - name: Configure Pages
