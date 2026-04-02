@@ -39,5 +39,6 @@ describe("App routing", () => {
 
     expect(await screen.findByRole("heading", { name: "Ideas whiteboard" })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Ideas" }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Refresh board" })).toBeInTheDocument();
   });
 });

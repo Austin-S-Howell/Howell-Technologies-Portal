@@ -19,6 +19,8 @@ const STROKE_COLORS = ["#b86b3d", "#424852", "#2f6db0", "#2f9150", "#7f3fbf", "#
 const SAVE_DEBOUNCE_MS = 180;
 const MAX_UNDO_STEPS = 50;
 const IDEAS_BOARD_SCOPE_KEY = "ht.operatorPortal.ideasBoardScope.v1";
+const IDEAS_SHARED_LIVE_UPDATES_KEY = "ht.operatorPortal.ideasSharedLiveUpdates.v1";
+const SHARED_BOARD_REFRESH_INTERVAL_MS = 5000;
 
 function buildId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -61,6 +63,30 @@ function persistIdeasBoardScope(scope: IdeasBoardScope) {
 
   try {
     window.localStorage.setItem(IDEAS_BOARD_SCOPE_KEY, scope);
+  } catch {
+    // Ignore localStorage failures.
+  }
+}
+
+function getStoredSharedLiveUpdatesEnabled() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  try {
+    return window.localStorage.getItem(IDEAS_SHARED_LIVE_UPDATES_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function persistSharedLiveUpdatesEnabled(enabled: boolean) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(IDEAS_SHARED_LIVE_UPDATES_KEY, enabled ? "true" : "false");
   } catch {
     // Ignore localStorage failures.
   }
@@ -134,6 +160,10 @@ function cloneBoardState(notes: StickyNote[], paths: DrawingPath[]) {
   };
 }
 
+function boardStatesMatch(left: ReturnType<typeof cloneBoardState>, right: ReturnType<typeof cloneBoardState>) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 function getBoardPoint(board: HTMLDivElement, clientX: number, clientY: number): WhiteboardPoint | null {
   const rect = board.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) {
@@ -173,11 +203,16 @@ export function IdeasPage() {
   const [history, setHistory] = useState<Array<ReturnType<typeof cloneBoardState>>>([]);
   const [isTouchInput, setIsTouchInput] = useState(false);
   const [boardLoading, setBoardLoading] = useState(true);
+  const [boardRefreshing, setBoardRefreshing] = useState(false);
   const [boardSaving, setBoardSaving] = useState(false);
   const [boardStatus, setBoardStatus] = useState("Loading board...");
   const [boardError, setBoardError] = useState("");
+  const [sharedLiveUpdatesEnabled, setSharedLiveUpdatesEnabled] = useState(() => getStoredSharedLiveUpdatesEnabled());
   const boardRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const boardStateRef = useRef(cloneBoardState(EMPTY_IDEAS_BOARD_STATE.notes, EMPTY_IDEAS_BOARD_STATE.paths));
+  const mountedRef = useRef(true);
+  const boardLoadRequestIdRef = useRef(0);
   const drawingPointerIdRef = useRef<number | null>(null);
   const draftPathRef = useRef<DrawingPath | null>(null);
   const textEditSessionRef = useRef<string | null>(null);
@@ -196,10 +231,26 @@ export function IdeasPage() {
     startHeight: number;
   } | null>(null);
   const activeBoardStorageKey = getIdeasStorageKey(boardScope === "shared" ? "shared" : `private:${operatorEmail || "anonymous"}`);
+  const activeBoardName = boardScope === "shared" ? "Shared ideas board" : "Private ideas board";
+  const hasBoardContent = notes.length > 0 || paths.length > 0;
+  const whiteboardHint = isTouchInput
+    ? "Drag notes by the handle. Draw directly on the board with your finger."
+    : "Drag notes by the handle. Draw or erase directly on the board.";
 
   useEffect(() => {
     draftPathRef.current = draftPath;
   }, [draftPath]);
+
+  useEffect(() => {
+    boardStateRef.current = cloneBoardState(notes, paths);
+  }, [notes, paths]);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      boardLoadRequestIdRef.current += 1;
+    };
+  }, []);
 
   function recordHistorySnapshot() {
     const snapshot = cloneBoardState(notes, paths);
@@ -242,67 +293,28 @@ export function IdeasPage() {
   }, [boardScope]);
 
   useEffect(() => {
-    let cancelled = false;
-    const localState = loadIdeasBoardState(activeBoardStorageKey);
+    void loadBoard({ mode: "initial", preserveLocalWhenRemoteEmpty: true });
+  }, [activeBoardStorageKey, boardScope, operatorEmail, supabaseIdeasEnabled]);
 
-    setBoardLoading(true);
-    setBoardError("");
-    setBoardStatus(supabaseIdeasEnabled ? "Loading board from Supabase..." : "Using browser-only board storage.");
-    setHistory([]);
-    noteDragRef.current = null;
-    noteResizeRef.current = null;
-    drawingPointerIdRef.current = null;
-    draftPathRef.current = null;
-    textEditSessionRef.current = null;
-    setDraftPath(null);
-    setNotes(localState.notes);
-    setPaths(localState.paths);
+  useEffect(() => {
+    persistSharedLiveUpdatesEnabled(sharedLiveUpdatesEnabled);
+  }, [sharedLiveUpdatesEnabled]);
 
-    if (!supabaseIdeasEnabled) {
-      setBoardLoading(false);
-      return () => {
-        cancelled = true;
-      };
+  useEffect(() => {
+    if (!supabaseIdeasEnabled || boardScope !== "shared" || !sharedLiveUpdatesEnabled || boardLoading) {
+      return;
     }
 
-    void (async () => {
-      try {
-        const remoteState = await loadIdeasBoardFromSupabase(boardScope, operatorEmail);
-        if (cancelled) {
-          return;
-        }
+    void loadBoard({ mode: "poll", preserveLocalWhenRemoteEmpty: false });
 
-        const shouldKeepLocal =
-          remoteState !== null &&
-          remoteState.notes.length === 0 &&
-          remoteState.paths.length === 0 &&
-          (localState.notes.length > 0 || localState.paths.length > 0);
-        const resolvedState = remoteState && !shouldKeepLocal ? remoteState : localState;
-        setNotes(resolvedState.notes);
-        setPaths(resolvedState.paths);
-        setBoardStatus(
-          shouldKeepLocal
-            ? "Loaded local board and ready to sync it to Supabase."
-            : boardScope === "shared"
-              ? "Shared board synced with Supabase."
-              : "Private board synced with Supabase.",
-        );
-      } catch {
-        if (!cancelled) {
-          setBoardError("Unable to load the Supabase board right now. Using the local browser copy.");
-          setBoardStatus("Using local board backup.");
-        }
-      } finally {
-        if (!cancelled) {
-          setBoardLoading(false);
-        }
-      }
-    })();
+    const intervalId = window.setInterval(() => {
+      void loadBoard({ mode: "poll", preserveLocalWhenRemoteEmpty: false });
+    }, SHARED_BOARD_REFRESH_INTERVAL_MS);
 
     return () => {
-      cancelled = true;
+      window.clearInterval(intervalId);
     };
-  }, [activeBoardStorageKey, boardScope, operatorEmail, supabaseIdeasEnabled]);
+  }, [boardLoading, boardScope, operatorEmail, sharedLiveUpdatesEnabled, supabaseIdeasEnabled]);
 
   useEffect(() => {
     if (boardLoading) {
@@ -667,6 +679,121 @@ export function IdeasPage() {
     }
   }
 
+  function resetBoardInteractions() {
+    noteDragRef.current = null;
+    noteResizeRef.current = null;
+    drawingPointerIdRef.current = null;
+    draftPathRef.current = null;
+    textEditSessionRef.current = null;
+    setDraftPath(null);
+  }
+
+  function applyBoardState(nextState: ReturnType<typeof cloneBoardState>) {
+    const clonedState = cloneBoardState(nextState.notes, nextState.paths);
+    resetBoardInteractions();
+    setHistory([]);
+    setNotes(clonedState.notes);
+    setPaths(clonedState.paths);
+  }
+
+  async function loadBoard(options: {
+    mode: "initial" | "manual" | "poll";
+    preserveLocalWhenRemoteEmpty: boolean;
+  }) {
+    const requestId = ++boardLoadRequestIdRef.current;
+    const storedLocalState = loadIdeasBoardState(activeBoardStorageKey);
+    const localState = cloneBoardState(storedLocalState.notes, storedLocalState.paths);
+
+    if (options.mode === "initial") {
+      setBoardLoading(true);
+      setBoardError("");
+      setBoardStatus(supabaseIdeasEnabled ? "Loading board from Supabase..." : "Using browser-only board storage.");
+      applyBoardState(localState);
+    } else if (options.mode === "manual") {
+      setBoardRefreshing(true);
+      setBoardError("");
+      setBoardStatus(supabaseIdeasEnabled ? `Refreshing ${activeBoardName.toLowerCase()}...` : `Reloading ${activeBoardName.toLowerCase()} from this browser...`);
+    }
+
+    if (!supabaseIdeasEnabled) {
+      if (!mountedRef.current || requestId !== boardLoadRequestIdRef.current) {
+        return;
+      }
+
+      if (options.mode !== "initial") {
+        applyBoardState(localState);
+        setBoardStatus(`${activeBoardName} reloaded from this browser.`);
+      }
+      setBoardLoading(false);
+      setBoardRefreshing(false);
+      return;
+    }
+
+    try {
+      const remoteState = await loadIdeasBoardFromSupabase(boardScope, operatorEmail);
+      if (!mountedRef.current || requestId !== boardLoadRequestIdRef.current) {
+        return;
+      }
+
+      const shouldKeepLocal =
+        options.preserveLocalWhenRemoteEmpty &&
+        remoteState !== null &&
+        remoteState.notes.length === 0 &&
+        remoteState.paths.length === 0 &&
+        (localState.notes.length > 0 || localState.paths.length > 0);
+      const resolvedState = cloneBoardState(
+        (remoteState && !shouldKeepLocal ? remoteState : localState).notes,
+        (remoteState && !shouldKeepLocal ? remoteState : localState).paths,
+      );
+      const boardChanged = !boardStatesMatch(boardStateRef.current, resolvedState);
+      applyBoardState(resolvedState);
+
+      if (options.mode === "initial") {
+        setBoardStatus(
+          shouldKeepLocal
+            ? "Loaded local board and ready to sync it to Supabase."
+            : boardScope === "shared"
+              ? "Shared board synced with Supabase."
+              : "Private board synced with Supabase.",
+        );
+      } else if (options.mode === "manual") {
+        setBoardStatus(
+          boardChanged
+            ? boardScope === "shared"
+              ? "Shared board refreshed from Supabase."
+              : "Private board refreshed from Supabase."
+            : `${activeBoardName} already matches Supabase.`,
+        );
+      } else if (boardChanged) {
+        setBoardStatus("Shared board updated from Supabase.");
+      }
+    } catch (error) {
+      if (!mountedRef.current || requestId !== boardLoadRequestIdRef.current) {
+        return;
+      }
+
+      if (options.mode === "initial") {
+        setBoardError("Unable to load the Supabase board right now. Using the local browser copy.");
+        setBoardStatus("Using local board backup.");
+      } else if (options.mode === "manual") {
+        setBoardError(error instanceof Error ? error.message : "Unable to refresh the board from Supabase.");
+        setBoardStatus("Using local board backup.");
+      } else {
+        setBoardError("Live updates could not refresh the shared board.");
+      }
+    } finally {
+      if (!mountedRef.current || requestId !== boardLoadRequestIdRef.current) {
+        return;
+      }
+      setBoardLoading(false);
+      setBoardRefreshing(false);
+    }
+  }
+
+  async function handleRefreshBoard() {
+    await loadBoard({ mode: "manual", preserveLocalWhenRemoteEmpty: false });
+  }
+
   async function handleSaveBoard() {
     saveIdeasBoardState({ notes, paths }, activeBoardStorageKey);
 
@@ -688,12 +815,6 @@ export function IdeasPage() {
       setBoardSaving(false);
     }
   }
-
-  const hasBoardContent = notes.length > 0 || paths.length > 0;
-  const activeBoardName = boardScope === "shared" ? "Shared ideas board" : "Private ideas board";
-  const whiteboardHint = isTouchInput
-    ? "Drag notes by the handle. Draw directly on the board with your finger."
-    : "Drag notes by the handle. Draw or erase directly on the board.";
 
   return (
     <section className="ideas-page">
@@ -742,6 +863,29 @@ export function IdeasPage() {
             <i className="pi pi-plus" aria-hidden="true" />
             Add sticky note
           </button>
+          <button
+            type="button"
+            className="ideas-action ideas-action--ghost"
+            onClick={() => {
+              void handleRefreshBoard();
+            }}
+            disabled={boardLoading || boardRefreshing || boardSaving}
+          >
+            <i className="pi pi-refresh" aria-hidden="true" />
+            {boardRefreshing ? "Refreshing..." : "Refresh board"}
+          </button>
+          {boardScope === "shared" && supabaseIdeasEnabled ? (
+            <button
+              type="button"
+              className={sharedLiveUpdatesEnabled ? "ideas-toggle is-active" : "ideas-toggle"}
+              onClick={() => setSharedLiveUpdatesEnabled((current) => !current)}
+              aria-pressed={sharedLiveUpdatesEnabled}
+              disabled={boardLoading || boardSaving}
+            >
+              <i className="pi pi-sync" aria-hidden="true" />
+              {sharedLiveUpdatesEnabled ? "Live updates on" : "Live updates off"}
+            </button>
+          ) : null}
           <button
             type="button"
             className="ideas-action ideas-action--ghost"
