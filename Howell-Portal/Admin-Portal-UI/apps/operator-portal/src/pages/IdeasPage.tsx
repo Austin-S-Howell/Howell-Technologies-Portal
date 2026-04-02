@@ -26,6 +26,8 @@ const SAVE_DEBOUNCE_MS = 180;
 const MAX_UNDO_STEPS = 50;
 const IDEAS_BOARD_SCOPE_KEY = "ht.operatorPortal.ideasBoardScope.v1";
 const IDEAS_SHARED_LIVE_UPDATES_KEY = "ht.operatorPortal.ideasSharedLiveUpdates.v1";
+const MIN_STROKE_WIDTH = 2;
+const MAX_STROKE_WIDTH = 80;
 
 function buildId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -205,6 +207,17 @@ export function IdeasPage() {
   const [noteColor, setNoteColor] = useState(NOTE_COLORS[0]);
   const [boardSize, setBoardSize] = useState({ width: 0, height: 0 });
   const [draftPath, setDraftPath] = useState<DrawingPath | null>(null);
+  const [cursorPreview, setCursorPreview] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    pointerType: string;
+  }>({
+    visible: false,
+    x: 0,
+    y: 0,
+    pointerType: "",
+  });
   const [history, setHistory] = useState<Array<ReturnType<typeof cloneBoardState>>>([]);
   const [isTouchInput, setIsTouchInput] = useState(false);
   const [boardLoading, setBoardLoading] = useState(true);
@@ -496,6 +509,30 @@ export function IdeasPage() {
     setDraftPath(null);
   }
 
+  function updateCursorPreview(clientX: number, clientY: number, pointerType: string) {
+    const board = boardRef.current;
+    if (!board || pointerType !== "mouse") {
+      setCursorPreview((current) => (current.visible ? { ...current, visible: false, pointerType } : current));
+      return;
+    }
+
+    const rect = board.getBoundingClientRect();
+    setCursorPreview({
+      visible: true,
+      x: clampNumber(clientX - rect.left, 0, rect.width),
+      y: clampNumber(clientY - rect.top, 0, rect.height),
+      pointerType,
+    });
+  }
+
+  function hideCursorPreview() {
+    setCursorPreview((current) => (current.visible ? { ...current, visible: false } : current));
+  }
+
+  function updateStrokeWidth(nextValue: number) {
+    setStrokeWidth(clampNumber(Number.isFinite(nextValue) ? nextValue : MIN_STROKE_WIDTH, MIN_STROKE_WIDTH, MAX_STROKE_WIDTH));
+  }
+
   function handleCanvasPointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
     if (event.pointerType === "mouse" && event.button !== 0) {
       return;
@@ -512,6 +549,7 @@ export function IdeasPage() {
     }
 
     drawingPointerIdRef.current = event.pointerId;
+    updateCursorPreview(event.clientX, event.clientY, event.pointerType);
     const nextPath: DrawingPath = {
       points: [point],
       color: strokeColor,
@@ -525,6 +563,8 @@ export function IdeasPage() {
   }
 
   function handleCanvasPointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
+    updateCursorPreview(event.clientX, event.clientY, event.pointerType);
+
     if (drawingPointerIdRef.current !== event.pointerId) {
       return;
     }
@@ -576,10 +616,20 @@ export function IdeasPage() {
 
   function handleCanvasPointerUp(event: React.PointerEvent<HTMLCanvasElement>) {
     finalizeDraftPath(event.pointerId);
+    updateCursorPreview(event.clientX, event.clientY, event.pointerType);
   }
 
   function handleCanvasPointerCancel(event: React.PointerEvent<HTMLCanvasElement>) {
     finalizeDraftPath(event.pointerId);
+    hideCursorPreview();
+  }
+
+  function handleCanvasPointerLeave() {
+    hideCursorPreview();
+  }
+
+  function handleCanvasPointerEnter(event: React.PointerEvent<HTMLCanvasElement>) {
+    updateCursorPreview(event.clientX, event.clientY, event.pointerType);
   }
 
   function handleNoteDragStart(noteId: string, event: React.PointerEvent<HTMLButtonElement>) {
@@ -1062,13 +1112,25 @@ export function IdeasPage() {
             <span>Stroke width</span>
             <input
               type="range"
-              min="2"
-              max="24"
+              min={String(MIN_STROKE_WIDTH)}
+              max={String(MAX_STROKE_WIDTH)}
               step="1"
               value={strokeWidth}
-              onChange={(event) => setStrokeWidth(Number(event.target.value))}
+              onChange={(event) => updateStrokeWidth(Number(event.target.value))}
             />
-            <strong>{strokeWidth}px</strong>
+            <div className="ideas-range__value-row">
+              <input
+                type="number"
+                min={String(MIN_STROKE_WIDTH)}
+                max={String(MAX_STROKE_WIDTH)}
+                step="1"
+                value={strokeWidth}
+                onChange={(event) => updateStrokeWidth(Number(event.target.value))}
+                aria-label="Stroke width in pixels"
+                className="ideas-range__number"
+              />
+              <strong>px</strong>
+            </div>
           </label>
           <button type="button" className="ideas-action ideas-action--ghost" onClick={handleClearBoard}>
             <i className="pi pi-trash" aria-hidden="true" />
@@ -1081,6 +1143,154 @@ export function IdeasPage() {
         ref={boardShellRef}
         className={boardFullscreen ? "ideas-board-shell is-fullscreen" : "ideas-board-shell"}
       >
+        {boardFullscreen ? (
+          <div className="ideas-board-shell__controls" aria-label="Fullscreen board actions">
+            <div className="ideas-board-shell__quickbar">
+              <button type="button" className="ideas-action ideas-action--primary" onClick={handleAddNote}>
+                <i className="pi pi-plus" aria-hidden="true" />
+                Add note
+              </button>
+              <button
+                type="button"
+                className="ideas-action ideas-action--ghost"
+                onClick={() => {
+                  void handleRefreshBoard();
+                }}
+                disabled={boardLoading || boardRefreshing || boardSaving}
+              >
+                <i className="pi pi-refresh" aria-hidden="true" />
+                {boardRefreshing ? "Refreshing..." : "Refresh"}
+              </button>
+              <button
+                type="button"
+                className="ideas-action ideas-action--ghost"
+                onClick={() => {
+                  void handleSaveBoard();
+                }}
+                disabled={boardSaving || boardLoading}
+              >
+                <i className="pi pi-save" aria-hidden="true" />
+                {boardSaving ? "Saving..." : "Save"}
+              </button>
+              <button
+                type="button"
+                className="ideas-action ideas-action--ghost"
+                onClick={handleUndo}
+                disabled={history.length === 0}
+              >
+                <i className="pi pi-undo" aria-hidden="true" />
+                Undo
+              </button>
+              <button
+                type="button"
+                className={tool === "pen" ? "ideas-toggle is-active" : "ideas-toggle"}
+                onClick={() => setTool("pen")}
+                aria-pressed={tool === "pen"}
+              >
+                <i className="pi pi-pencil" aria-hidden="true" />
+                Pen
+              </button>
+              <button
+                type="button"
+                className={tool === "eraser" ? "ideas-toggle is-active" : "ideas-toggle"}
+                onClick={() => setTool("eraser")}
+                aria-pressed={tool === "eraser"}
+              >
+                <i className="pi pi-eraser" aria-hidden="true" />
+                Eraser
+              </button>
+              {boardScope === "shared" && supabaseIdeasEnabled ? (
+                <button
+                  type="button"
+                  className={sharedLiveUpdatesEnabled ? "ideas-toggle is-active" : "ideas-toggle"}
+                  onClick={() => setSharedLiveUpdatesEnabled((current) => !current)}
+                  aria-pressed={sharedLiveUpdatesEnabled}
+                  disabled={boardLoading || boardSaving}
+                >
+                  <i className="pi pi-sync" aria-hidden="true" />
+                  {sharedLiveUpdatesEnabled
+                    ? sharedLiveUpdatesConnected
+                      ? "Live on"
+                      : "Connecting..."
+                    : "Live off"}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="ideas-action ideas-action--ghost"
+                onClick={handleDownloadSnapshot}
+                disabled={!hasBoardContent}
+              >
+                <i className="pi pi-image" aria-hidden="true" />
+                PNG
+              </button>
+            </div>
+
+            <div className="ideas-board-shell__quickbar ideas-board-shell__quickbar--detail">
+              <div className="ideas-toolbar__label-block">
+                <span>Note color</span>
+                <div className="ideas-swatch-row" role="group" aria-label="Fullscreen note color">
+                  {NOTE_COLORS.map((color) => (
+                    <button
+                      key={`fullscreen-note-${color}`}
+                      type="button"
+                      className={noteColor === color ? "ideas-swatch is-active" : "ideas-swatch"}
+                      style={{ background: color }}
+                      onClick={() => setNoteColor(color)}
+                      aria-label={`Use note color ${color}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="ideas-toolbar__label-block">
+                <span>Stroke color</span>
+                <div className="ideas-swatch-row" role="group" aria-label="Fullscreen drawing color">
+                  {STROKE_COLORS.map((color) => (
+                    <button
+                      key={`fullscreen-stroke-${color}`}
+                      type="button"
+                      className={strokeColor === color ? "ideas-swatch is-active" : "ideas-swatch"}
+                      style={{ background: color }}
+                      onClick={() => setStrokeColor(color)}
+                      aria-label={`Use drawing color ${color}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <label className="ideas-range ideas-range--compact">
+                <span>Stroke width</span>
+                <input
+                  type="range"
+                  min={String(MIN_STROKE_WIDTH)}
+                  max={String(MAX_STROKE_WIDTH)}
+                  step="1"
+                  value={strokeWidth}
+                  onChange={(event) => updateStrokeWidth(Number(event.target.value))}
+                />
+                <div className="ideas-range__value-row">
+                  <input
+                    type="number"
+                    min={String(MIN_STROKE_WIDTH)}
+                    max={String(MAX_STROKE_WIDTH)}
+                    step="1"
+                    value={strokeWidth}
+                    onChange={(event) => updateStrokeWidth(Number(event.target.value))}
+                    aria-label="Fullscreen stroke width in pixels"
+                    className="ideas-range__number"
+                  />
+                  <strong>px</strong>
+                </div>
+              </label>
+
+              <button type="button" className="ideas-action ideas-action--ghost" onClick={handleClearBoard}>
+                <i className="pi pi-trash" aria-hidden="true" />
+                Clear all
+              </button>
+            </div>
+          </div>
+        ) : null}
         <div className="ideas-board-meta">
           <div className="ideas-board-meta__copy">
             <p>{whiteboardHint}</p>
@@ -1107,12 +1317,34 @@ export function IdeasPage() {
         <div ref={boardRef} className="ideas-board">
           <canvas
             ref={canvasRef}
-            className={tool === "eraser" ? "ideas-board__canvas is-erasing" : "ideas-board__canvas"}
+            className={
+              tool === "eraser"
+                ? cursorPreview.visible && cursorPreview.pointerType === "mouse"
+                  ? "ideas-board__canvas is-erasing is-previewing"
+                  : "ideas-board__canvas is-erasing"
+                : cursorPreview.visible && cursorPreview.pointerType === "mouse"
+                  ? "ideas-board__canvas is-previewing"
+                  : "ideas-board__canvas"
+            }
             onPointerDown={handleCanvasPointerDown}
+            onPointerEnter={handleCanvasPointerEnter}
             onPointerMove={handleCanvasPointerMove}
             onPointerUp={handleCanvasPointerUp}
             onPointerCancel={handleCanvasPointerCancel}
+            onPointerLeave={handleCanvasPointerLeave}
           />
+          {cursorPreview.visible && cursorPreview.pointerType === "mouse" ? (
+            <div
+              className={tool === "eraser" ? "ideas-board__cursor-preview is-erasing" : "ideas-board__cursor-preview"}
+              style={{
+                left: `${cursorPreview.x}px`,
+                top: `${cursorPreview.y}px`,
+                width: `${strokeWidth}px`,
+                height: `${strokeWidth}px`,
+              }}
+              aria-hidden="true"
+            />
+          ) : null}
 
           {!hasBoardContent ? (
             <div className="ideas-board__empty-state">

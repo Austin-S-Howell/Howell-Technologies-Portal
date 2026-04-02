@@ -186,6 +186,22 @@
   font-size: 0.92rem;
 }
 
+.ideas-range__value-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ideas-range__number {
+  width: 84px;
+  border-radius: 12px;
+  border: 1px solid rgba(97, 102, 114, 0.18);
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--ht-ink);
+  padding: 8px 10px;
+  font: inherit;
+}
+
 .ideas-board-shell {
   min-height: 0;
   padding: 16px;
@@ -193,6 +209,36 @@
   grid-template-rows: auto 1fr;
   gap: 12px;
   overflow: hidden;
+}
+
+.ideas-board-shell__controls {
+  display: grid;
+  gap: 10px;
+}
+
+.ideas-board-shell__quickbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 4px 0 2px;
+}
+
+.ideas-board-shell__quickbar--detail {
+  padding: 0;
+}
+
+.ideas-board-shell__quickbar--detail .ideas-toolbar__label-block {
+  min-width: 0;
+}
+
+.ideas-board-shell__quickbar .ideas-action,
+.ideas-board-shell__quickbar .ideas-toggle {
+  padding: 9px 14px;
+}
+
+.ideas-range--compact {
+  min-width: 200px;
 }
 
 .ideas-board-meta {
@@ -276,7 +322,7 @@
 
 .ideas-board-shell.is-fullscreen:fullscreen {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   gap: 12px;
 }
 
@@ -292,6 +338,27 @@
 
 .ideas-board__canvas.is-erasing {
   cursor: cell;
+}
+
+.ideas-board__canvas.is-previewing,
+.ideas-board__canvas.is-erasing.is-previewing {
+  cursor: none;
+}
+
+.ideas-board__cursor-preview {
+  position: absolute;
+  z-index: 4;
+  border-radius: 999px;
+  border: 2px solid rgba(47, 109, 176, 0.9);
+  background: rgba(47, 109, 176, 0.14);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
+}
+
+.ideas-board__cursor-preview.is-erasing {
+  border-color: rgba(176, 34, 95, 0.92);
+  background: rgba(176, 34, 95, 0.16);
 }
 
 .ideas-board__empty-state {
@@ -483,6 +550,22 @@
   .ideas-board-shell {
     padding: 12px;
     min-height: 62dvh;
+  }
+
+  .ideas-board-shell__quickbar {
+    width: 100%;
+  }
+
+  .ideas-board-shell__quickbar .ideas-action,
+  .ideas-board-shell__quickbar .ideas-toggle {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+
+  .ideas-board-shell__quickbar--detail .ideas-toolbar__label-block,
+  .ideas-board-shell__quickbar--detail .ideas-range,
+  .ideas-board-shell__quickbar--detail .ideas-action {
+    width: 100%;
   }
 
   .ideas-board__empty-state {
