@@ -2,7 +2,7 @@ FROM node:22-alpine AS build
 WORKDIR /app
 
 ARG VITE_PUBLIC_BASE=/
-ARG VITE_STATIC_FE_ONLY=false
+ARG VITE_STATIC_FE_ONLY=true
 ARG VITE_POC_API_BASE_URL=
 
 COPY package.json tsconfig.base.json ./

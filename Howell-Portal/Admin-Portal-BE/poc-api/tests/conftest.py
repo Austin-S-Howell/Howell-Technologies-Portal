@@ -12,6 +12,7 @@ from app.database import engine
 from app.main import app
 from app.models import UserSession
 from app.services.ms_config import clear_runtime_microsoft_config
+from app.services.operator_auth_store import ensure_local_operator_users_table
 
 
 @pytest.fixture(autouse=True)
@@ -19,6 +20,8 @@ def reset_db() -> None:
     clear_runtime_microsoft_config()
     SQLModel.metadata.drop_all(engine)
     SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        ensure_local_operator_users_table(session)
 
 
 @pytest.fixture

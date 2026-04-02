@@ -19,7 +19,7 @@
     "lint": "npm run lint --workspaces --if-present",
     "smoke": "bash ./scripts/smoke-operator.sh",
     "preview": "npm run preview --workspace @howell-technologies/operator-portal",
-    "docker": "sh -c 'docker container rm -f howell-technologies-portal howell-technologies-poc-api >/dev/null 2>&1 || true; docker compose up --build -d --remove-orphans'",
+    "docker": "npm run docker:frontend",
     "docker:frontend": "sh -c 'docker container rm -f howell-technologies-portal >/dev/null 2>&1 || true; while docker container inspect howell-technologies-portal >/dev/null 2>&1; do sleep 0.2; done; docker build -t howell-technologies-portal . && docker run -d --restart unless-stopped --name howell-technologies-portal -p ${PORT:-5173}:8080 howell-technologies-portal'",
     "docker:api": "sh -c 'docker container rm -f howell-technologies-poc-api >/dev/null 2>&1 || true; while docker container inspect howell-technologies-poc-api >/dev/null 2>&1; do sleep 0.2; done; docker build -t howell-technologies-poc-api ../Admin-Portal-BE/poc-api && docker run -d --restart unless-stopped --name howell-technologies-poc-api -p ${POC_API_PORT:-8000}:8000 howell-technologies-poc-api'",
     "docker:stack": "docker compose up --build -d --remove-orphans"

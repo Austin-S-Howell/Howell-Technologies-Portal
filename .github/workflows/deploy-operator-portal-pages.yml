@@ -76,6 +76,25 @@ jobs:
         run: npm run build --workspace @howell-technologies/operator-portal
         working-directory: Howell-Portal/Admin-Portal-UI
 
+      - name: Verify Pages artifact hygiene
+        run: |
+          set -euo pipefail
+          DIST_DIR="apps/operator-portal/dist"
+
+          if find "$DIST_DIR" -type f \( -name '*.map' -o -name '*.ts' -o -name '*.tsx' -o -name '*.jsx' -o -name '*.mjs.map' -o -name '*.cjs.map' \) | grep -q .; then
+            echo "Unexpected source-like files found in Pages artifact:"
+            find "$DIST_DIR" -type f \( -name '*.map' -o -name '*.ts' -o -name '*.tsx' -o -name '*.jsx' -o -name '*.mjs.map' -o -name '*.cjs.map' \) | sort
+            exit 1
+          fi
+
+          if grep -RIn "sourceMappingURL" "$DIST_DIR"; then
+            echo "sourceMappingURL reference found in Pages artifact."
+            exit 1
+          fi
+
+          echo "Pages artifact hygiene check passed."
+        working-directory: Howell-Portal/Admin-Portal-UI
+
       - name: Add SPA fallback
         run: cp apps/operator-portal/dist/index.html apps/operator-portal/dist/404.html
         working-directory: Howell-Portal/Admin-Portal-UI

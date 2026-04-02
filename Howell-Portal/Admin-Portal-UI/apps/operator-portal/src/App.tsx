@@ -6,6 +6,7 @@ import { ClientDetailPage } from "./pages/ClientDetailPage";
 import { ClientsPage } from "./pages/ClientsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DemoWorkbenchPage } from "./pages/DemoWorkbenchPage";
+import { IdeasPage } from "./pages/IdeasPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { ProfileSettingsPage } from "./pages/ProfileSettingsPage";
@@ -30,6 +31,7 @@ export default function App() {
             <Route path="/clients" element={<ClientsPage />} />
             <Route path="/clients/:clientId" element={<ClientDetailPage />} />
             <Route path="/status" element={<ApplicationStatusPage />} />
+            <Route path="/ideas" element={<IdeasPage />} />
             <Route path="/profile" element={<ProfileSettingsPage />} />
             <Route path="/demo-workbench/*" element={<DemoWorkbenchPage />} />
           </Route>

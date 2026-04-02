@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_PUBLIC_BASE: /
-        VITE_STATIC_FE_ONLY: "false"
+        VITE_STATIC_FE_ONLY: "true"
         VITE_POC_API_BASE_URL: "${VITE_POC_API_BASE_URL:-http://localhost:8000}"
     image: howell-technologies-portal:latest
     container_name: howell-technologies-portal

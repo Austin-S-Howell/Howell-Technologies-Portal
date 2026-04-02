@@ -10,6 +10,9 @@ export default defineConfig(({ mode }) => {
   return {
     base,
     plugins: [react()],
+    build: {
+      sourcemap: false,
+    },
     resolve: {
       alias: {
         "@howell-technologies/portal": new URL("../../packages/portal/src/index.ts", import.meta.url).pathname,

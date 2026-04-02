@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     log_level: str = "info"
 
-    database_url: str = "sqlite:///./poc_api.db"
+    database_url: str | None = None
     db_host: str | None = None
     db_port: int = 5432
     db_name: str = "postgres"
@@ -57,6 +57,16 @@ class Settings(BaseSettings):
 
     @property
     def resolved_database_url(self) -> str:
+        database_url = (self.database_url or "").strip()
+        if database_url:
+            if database_url.startswith("postgresql://"):
+                return "postgresql+psycopg://" + database_url.removeprefix("postgresql://")
+
+            if database_url.startswith("postgres://"):
+                return "postgresql+psycopg://" + database_url.removeprefix("postgres://")
+
+            return database_url
+
         if self.db_host and self.db_password:
             encoded_password = quote(self.db_password, safe="")
             return (
@@ -64,13 +74,7 @@ class Settings(BaseSettings):
                 f"@{self.db_host}:{self.db_port}/{self.db_name}?sslmode={self.db_ssl_mode}"
             )
 
-        if self.database_url.startswith("postgresql://"):
-            return "postgresql+psycopg://" + self.database_url.removeprefix("postgresql://")
-
-        if self.database_url.startswith("postgres://"):
-            return "postgresql+psycopg://" + self.database_url.removeprefix("postgres://")
-
-        return self.database_url
+        return "sqlite:///./poc_api.db"
 
 
 @lru_cache

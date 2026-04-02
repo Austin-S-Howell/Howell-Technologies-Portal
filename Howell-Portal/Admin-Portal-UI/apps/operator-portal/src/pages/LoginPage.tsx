@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import howellLogo from "../assets/howell-logo.png";
 import { HowellLogoSpinner } from "../components/HowellLogoSpinner";
@@ -8,10 +8,25 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/dashboard";
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
+  const passwordInputRef = useRef<HTMLInputElement | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setEmail("");
+    setPassword("");
+    setError("");
+
+    if (emailInputRef.current) {
+      emailInputRef.current.value = "";
+    }
+    if (passwordInputRef.current) {
+      passwordInputRef.current.value = "";
+    }
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,7 +53,7 @@ export function LoginPage() {
 
   return (
     <main className={submitting ? "login-page login-page--busy" : "login-page"}>
-      <form onSubmit={handleSubmit} className="login-panel" aria-hidden={submitting}>
+      <form onSubmit={handleSubmit} className="login-panel" aria-hidden={submitting} autoComplete="off">
         <div className="login-brand">
           <div className="login-logo">
             <img src={howellLogo} alt="Howell Technologies logo" />
@@ -57,20 +72,31 @@ export function LoginPage() {
           <label className="login-field">
             Username
             <input
+              ref={emailInputRef}
+              name="ht_operator_username"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               type="text"
-              autoComplete="username"
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              data-1p-ignore="true"
+              data-lpignore="true"
               required
             />
           </label>
           <label className="login-field">
             Password
             <input
+              ref={passwordInputRef}
+              name="ht_operator_password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               type="password"
-              autoComplete="current-password"
+              autoComplete="new-password"
+              data-1p-ignore="true"
+              data-lpignore="true"
               required
             />
           </label>

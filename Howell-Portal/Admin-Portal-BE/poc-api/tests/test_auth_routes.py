@@ -87,6 +87,18 @@ def test_operator_login_succeeds_with_matching_database_credentials(client, monk
     assert session_payload["session"]["email"] == "operator@example.com"
 
 
+def test_operator_login_succeeds_with_seeded_sqlite_credentials(client):
+    response = client.post(
+        "/api/auth/operator/login",
+        json={"username": "austin@howelltechnologies.com", "password": "admin"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["email"] == "austin@howelltechnologies.com"
+    assert payload["name"] == "Austin"
+    assert payload["role"] == "Operator"
+
+
 def test_operator_login_rejects_bad_username_password_combo(client, monkeypatch):
     monkeypatch.setattr("app.routers.auth.find_operator_user", lambda session, username: None)
 
